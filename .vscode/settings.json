@@ -1,0 +1,5 @@
+{
+    "solidity.defaultCompiler": "localNodeModule",
+    "solidity.compileUsingLocalVersion": "c:\\Users\\Peter\\Documents\\CSCD71\\naiveOracle\\soljson-v0.8.17+commit.8df45f5f.js",
+    "solidity.compileUsingRemoteVersion": "v0.8.17+commit.8df45f5f"
+}
