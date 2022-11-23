@@ -40,23 +40,94 @@ describe("Oracle", function () {
       await expect(test.callOracle())
                 .to.emit(o1, "RequestRecieved")
                 .to.emit(o2, "RequestRecieved");
-      let requestRecievedO1 = await o1.queryFilter(o1.filters.RequestRecieved());
-      let requestRecievedO2 = await o2.queryFilter(o2.filters.RequestRecieved());
-      let args1 = requestRecievedO1[0].args;
-      let args2 = requestRecievedO2[0].args;
+      let requestRecievedO1C = await o1.queryFilter(o1.filters.RequestRecieved());
+      let requestRecievedO2C = await o2.queryFilter(o2.filters.RequestRecieved());
+      let argsO1C = requestRecievedO1C[0].args;
+      let argsO2C = requestRecievedO2C[0].args;
 
-      await expect(o1.fulfillOracleRequest(args1._requestId, args1._callbackAddress, args1._callbackFunctionId, 10))
-            .to.emit(agg, "ResponseReceived");
+      const data1 = 10;
+      const salt1 = ethers.utils.randomBytes(32); // generate random salt
+      const hash1 = ethers.utils.solidityKeccak256(["uint256", "bytes32"], [data1, salt1]); // generate random hash from salt and data
+      
+      const data2 = 19;
+      const salt2 = ethers.utils.randomBytes(32); // generate random salt
+      const hash2 = ethers.utils.solidityKeccak256(["uint256", "bytes32"], [data2, salt2]); // generate random hash from salt and data
 
-      await expect(o2.fulfillOracleRequest(args2._requestId, args2._callbackAddress, args2._callbackFunctionId, 19))
-            .to.emit(agg, "ResponseReceived")
-            .to.emit(agg, "Answered");
+      await expect(o1.commitOracleRequest(argsO1C._requestId, argsO1C._callbackAddress, argsO1C._callbackFunctionId, hash1))
+        .to.emit(agg, "CommitReceived");
+
+      await expect(o2.commitOracleRequest(argsO2C._requestId, argsO2C._callbackAddress, argsO2C._callbackFunctionId, hash2))
+        .to.emit(agg, "CommitReceived");
+
+
+      let requestRecievedO1R = await o1.queryFilter(o1.filters.RequestRecieved());
+      let requestRecievedO2R = await o2.queryFilter(o2.filters.RequestRecieved());
+      let argsO1R = requestRecievedO1R[1].args;
+      let argsO2R = requestRecievedO2R[1].args;
+
+      await expect(o1.revealOracleRequest(argsO1R._requestId, argsO1R._callbackAddress, argsO1R._callbackFunctionId, data1, salt1))
+        .to.emit(agg, "ResponseReceived");
+
+      await expect(o2.revealOracleRequest(argsO2R._requestId, argsO2R._callbackAddress, argsO2R._callbackFunctionId, data2, salt2))
+        .to.emit(agg, "ResponseReceived")
+        .to.emit(agg, "Answered");
       
       const responseAns = ethers.BigNumber.from("19");
       expect(await test.getResponse()).to.equal(responseAns);
+    });
+
+    it("Aggregator should hash back correct commitment ", async function () {
 
     });
 
+    it("Aggregator should pervent Oracles to do freeloading", async function () {
+
+    });
+
+    it("Oracle should unable to sent reval before commit finished", async function () {
+
+    });
+
+    it("Oracle should unable to send new commit after commit finished", async function () {
+
+    });
+
+    it("Oracle should unable to callback after request finished", async function () {
+      // check commit
+
+      // check reveal
+
+    });
+
+    it("Aggregator should remove CommitReveal stored", async function () {
+      // to save cost of storage
+      // no need for early version
+
+    });
+
+    it("Oracle should remove commitment stored", async function () {
+      // no need for early version
+
+    });
+  })
+
+  describe("Oracle", function () {
+    it("Oracle should hash correct commitment", async function () {
+      // no need for early version
+
+    });
+    it("Oracle should remove commitment stored", async function () {
+      // no need for early version
+
+    });
+  })
+
+
+  describe("Hacker", function () {
+    it("Aggregator should filterout unauthorized Oracle request", async function () {
+      // no need for early version
+
+    });
   })
  
 });
