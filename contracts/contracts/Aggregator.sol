@@ -7,7 +7,7 @@ import "./interfaces/IRequestInterface.sol";
 
 /**
  * @title A naive chain aggregator
- */
+ */ 
 contract Aggregator is IAggregator {
 
     struct Answer {
@@ -65,7 +65,7 @@ contract Aggregator is IAggregator {
     }
 
     /**
-    * @dev the oracle contract will use submit the response through this request callback
+    * @dev the oracle contract will use submit the respxonse through this request callback
     */
     function requestCallback(bytes32 _requestId, int256 _response) external 
     {
@@ -88,5 +88,4 @@ contract Aggregator is IAggregator {
             emit Answered(_response);
         }
     }
-
 }
