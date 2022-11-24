@@ -24,7 +24,7 @@ contract Aggregator is IAggregator {
     }
 
     struct CommitReveal{
-        bytes32 commit;
+        bytes32 commit; // could change this to address to reduce gas fees
         int256 reveal;
     }
 
@@ -92,6 +92,16 @@ contract Aggregator is IAggregator {
         Answer storage currentAns = answers[_requestId];
         require(currentAns.commitAmt < currentAns.responseAmt, "cannot submit more responses since the commit process is finished");
 
+        // loop through the oracles to check if the commit hash is already exists
+        // to reduce gas fees, we can change the struct to commitReveal[_requestId][hash] = CommitReveal(address,reveal)
+        for (uint i=0; i < oracles.length; i++) {
+            // console.log("checking bro");
+            // console.logBytes32(commitReveal[_requestId][oracles[i]].commit);
+            // console.logBytes32(_commitHash);
+            require(commitReveal[_requestId][oracles[i]].commit != _commitHash, "cannot submit the same commit twice");
+            // console.log("passed");
+        }
+
         CommitReveal storage currentCR = commitReveal[_requestId][msg.sender];
         currentCR.commit = _commitHash;
         currentCR.reveal = 0;
@@ -136,14 +146,13 @@ contract Aggregator is IAggregator {
         Answer storage currentAns = answers[_requestId];
         require(currentAns.revealAmt < currentAns.commitAmt, "cannot submit more responses since the reveal process is finished");
         CommitReveal storage currentCR = commitReveal[_requestId][msg.sender];
-        if (currentCR.commit == keccak256(abi.encodePacked(_response, _salt))) {
-            currentCR.reveal = _response;
-            currentAns.responses.push(_response);
-            emit ResponseReceived(_requestId, _response);
-            currentAns.revealAmt++;
-        } else {
-            revert("invalid reveal");
-        }
+
+        require(currentCR.commit == keccak256(abi.encodePacked(_response, _salt)), "invalid reveal");
+        currentCR.reveal = _response;
+        currentAns.responses.push(_response);
+        emit ResponseReceived(_requestId, _response);
+        currentAns.revealAmt++;
+
         if (currentAns.revealAmt == currentAns.commitAmt) {
             // all responses are received, call the callback function
             bytes memory payload = abi.encodeWithSelector(currentAns.callbackFunctionId, _requestId, _response);

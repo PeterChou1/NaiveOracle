@@ -28,59 +28,65 @@ describe("Oracle", function () {
     return { agg, o1, o2, test, token, owner, otherAccount };
   }
 
+  // async function simulateOracleInput() {
+  //   // Contracts are deployed using the first signer/account by default
+  //   const data1 = 10;
+  //   const data2 = 19;
+
+  //   const salt1 = ethers.utils.randomBytes(32); // generate random salt
+  //   const hash1 = ethers.utils.solidityKeccak256(["uint256", "bytes32"], [data1, salt1]); // generate random hash from salt and data
+  //   const salt2 = ethers.utils.randomBytes(32); // generate random salt
+  //   const hash2 = ethers.utils.solidityKeccak256(["uint256", "bytes32"], [data2, salt2]); // generate random hash from salt and data
+  //   return { data1, salt1, hash1, data2, salt2, hash2 };
+  // }
+
 
   describe("Aggregate", function() {
+    // run the fixture before each test
+    const data1 = 10;
+    const data2 = 19;
+    const salt1 = ethers.utils.randomBytes(32); // generate random salt
+    const hash1 = ethers.utils.solidityKeccak256(["uint256", "bytes32"], [data1, salt1]); // generate random hash from salt and data
+    const salt2 = ethers.utils.randomBytes(32); // generate random salt
+    const hash2 = ethers.utils.solidityKeccak256(["uint256", "bytes32"], [data2, salt2]); // generate random hash from salt and data
+
     it("Should Aggregate two data points", async function () {
       const { test, agg, o1, o2, token, owner } = await loadFixture(deployAggregatorContract);
-      const gwei = ethers.BigNumber.from("1");
-      const result = ethers.BigNumber.from("1000");
-      token.deposit(gwei, {value: gwei});
-      expect(await token.balanceOf(owner.address)).to.equal(result);
-
+      // User contract ask Agg->Oracles for data
       await expect(test.callOracle())
-                .to.emit(o1, "RequestRecieved")
-                .to.emit(o2, "RequestRecieved");
+        .to.emit(o1, "RequestRecieved")
+        .to.emit(o2, "RequestRecieved");
+
+      // Oracle node recieves request and perpare commit hash
       let requestRecievedO1C = await o1.queryFilter(o1.filters.RequestRecieved());
       let requestRecievedO2C = await o2.queryFilter(o2.filters.RequestRecieved());
       let argsO1C = requestRecievedO1C[0].args;
       let argsO2C = requestRecievedO2C[0].args;
-
-      const data1 = 10;
-      const salt1 = ethers.utils.randomBytes(32); // generate random salt
-      const hash1 = ethers.utils.solidityKeccak256(["uint256", "bytes32"], [data1, salt1]); // generate random hash from salt and data
-      
-      const data2 = 19;
-      const salt2 = ethers.utils.randomBytes(32); // generate random salt
-      const hash2 = ethers.utils.solidityKeccak256(["uint256", "bytes32"], [data2, salt2]); // generate random hash from salt and data
-
+      // Oracles contract send the commit hash to Aggregator
       await expect(o1.commitOracleRequest(argsO1C._requestId, argsO1C._callbackAddress, argsO1C._callbackFunctionId, hash1))
         .to.emit(agg, "CommitReceived");
-
       await expect(o2.commitOracleRequest(argsO2C._requestId, argsO2C._callbackAddress, argsO2C._callbackFunctionId, hash2))
         .to.emit(agg, "CommitReceived");
 
-
+      // Oracle node recieves request and perpare reveal data
       let requestRecievedO1R = await o1.queryFilter(o1.filters.RequestRecieved());
       let requestRecievedO2R = await o2.queryFilter(o2.filters.RequestRecieved());
       let argsO1R = requestRecievedO1R[1].args;
       let argsO2R = requestRecievedO2R[1].args;
-
+      // Oracles contract send the reveal data to Aggregator
       await expect(o1.revealOracleRequest(argsO1R._requestId, argsO1R._callbackAddress, argsO1R._callbackFunctionId, data1, salt1))
         .to.emit(agg, "ResponseReceived");
-
       await expect(o2.revealOracleRequest(argsO2R._requestId, argsO2R._callbackAddress, argsO2R._callbackFunctionId, data2, salt2))
         .to.emit(agg, "ResponseReceived")
         .to.emit(agg, "Answered");
-      
+
+      // User contract check the response
       const responseAns = ethers.BigNumber.from("19");
       expect(await test.getResponse()).to.equal(responseAns);
     });
 
-    it("Aggregator should hash back correct commitment ", async function () {
 
-    });
-
-    it("Aggregator should pervent Oracles to do freeloading", async function () {
+    it("Oracle should unable to have second chance (commit or reveal)", async function () {
 
     });
 
@@ -109,6 +115,65 @@ describe("Oracle", function () {
       // no need for early version
 
     });
+  })
+
+  describe("Freeloaing", function () {
+    // run the fixture before each test
+    const data1 = 10;
+    const data2 = 19;
+    const salt1 = ethers.utils.randomBytes(32); // generate random salt
+    const hash1 = ethers.utils.solidityKeccak256(["uint256", "bytes32"], [data1, salt1]); // generate random hash from salt and data
+    const salt2 = ethers.utils.randomBytes(32); // generate random salt
+    const hash2 = ethers.utils.solidityKeccak256(["uint256", "bytes32"], [data2, salt2]); // generate random hash from salt and data
+
+   
+    it("Aggregator should reject invalid reveal (with wrong data or salt)", async function () {
+      const { test, agg, o1, o2, token, owner } = await loadFixture(deployAggregatorContract);
+      // User contract ask Agg->Oracles for data
+      await expect(test.callOracle())
+        .to.emit(o1, "RequestRecieved")
+        .to.emit(o2, "RequestRecieved");
+      // Oracle node recieves request and perpare commit hash
+      let requestRecievedO1C = await o1.queryFilter(o1.filters.RequestRecieved());
+      let requestRecievedO2C = await o2.queryFilter(o2.filters.RequestRecieved());
+      let argsO1C = requestRecievedO1C[0].args;
+      let argsO2C = requestRecievedO2C[0].args;
+      await expect(o1.commitOracleRequest(argsO1C._requestId, argsO1C._callbackAddress, argsO1C._callbackFunctionId, hash1))
+        .to.emit(agg, "CommitReceived");
+      await expect(o2.commitOracleRequest(argsO2C._requestId, argsO2C._callbackAddress, argsO2C._callbackFunctionId, hash2))
+        .to.emit(agg, "CommitReceived");
+      // Oracle node recieves request and perpare reveal data
+      let requestRecievedO1R = await o1.queryFilter(o1.filters.RequestRecieved());
+      let argsO1R = requestRecievedO1R[1].args;
+
+      // notice we reveal with wrong data/salt
+      await expect(o1.revealOracleRequest(argsO1R._requestId, argsO1R._callbackAddress, argsO1R._callbackFunctionId, data1, salt2))
+        .to.be.revertedWith(
+          "failed to executed provided reveal callback function" //"invalid reveal"
+        );
+    });
+
+    it("Aggregator should pervent Oracles to do freeloading (by steal both commit and reveal data)", async function () {
+      const { test, agg, o1, o2, token, owner } = await loadFixture(deployAggregatorContract);
+      // User contract ask Agg->Oracles for data
+      await expect(test.callOracle())
+        .to.emit(o1, "RequestRecieved")
+        .to.emit(o2, "RequestRecieved");
+      // Oracle node recieves request and perpare commit hash
+      let requestRecievedO1C = await o1.queryFilter(o1.filters.RequestRecieved());
+      let requestRecievedO2C = await o2.queryFilter(o2.filters.RequestRecieved());
+      let argsO1C = requestRecievedO1C[0].args;
+      let argsO2C = requestRecievedO2C[0].args;
+
+      // notice we trying to freeload by commit the same hash from other oracle
+      await expect(o1.commitOracleRequest(argsO1C._requestId, argsO1C._callbackAddress, argsO1C._callbackFunctionId, hash1))
+        .to.emit(agg, "CommitReceived");
+      await expect(o2.commitOracleRequest(argsO2C._requestId, argsO2C._callbackAddress, argsO2C._callbackFunctionId, hash1))
+        .to.be.revertedWith(
+          "failed to executed provided commit callback function" //"cannot commit the hash that already exists"
+        );
+    });
+
   })
 
   describe("Oracle", function () {

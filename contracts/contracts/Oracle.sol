@@ -62,8 +62,13 @@ contract Oracle is IERC677Receiver, IRequestInterface {
         bytes32 _salt
     )  external returns (bool) {
         //TODO: you can call this multiple times make it so that you can only fulfill a request once per ID?
-        (bool success, ) = _callbackAddress.call(abi.encodeWithSelector(_callbackFunctionId, _requestId, _data, _salt));
+        (bool success, bytes memory returnData) = _callbackAddress.call(abi.encodeWithSelector(_callbackFunctionId, _requestId, _data, _salt));
         require(success, "failed to executed provided reveal callback function");
+        // console.log(returnData);
+        // require(success, string(returnData));
+        // if (returnData.length > 0) {
+        //     require(abi.decode(returnData, (bool)), "BRUH");
+        // }
     }
 
 
