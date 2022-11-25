@@ -1,5 +1,4 @@
-import { time, loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
+import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
 
@@ -66,13 +65,15 @@ describe("Oracle", function () {
       await expect(o1.commitOracleRequest(argsO1C._requestId, argsO1C._callbackAddress, argsO1C._callbackFunctionId, hash1))
         .to.emit(agg, "CommitReceived");
       await expect(o2.commitOracleRequest(argsO2C._requestId, argsO2C._callbackAddress, argsO2C._callbackFunctionId, hash2))
-        .to.emit(agg, "CommitReceived");
+        .to.emit(agg, "CommitReceived")
+        .to.emit(o1, "RequestReveal")
+        .to.emit(o2, "RequestReveal");
 
       // Oracle node recieves request and perpare reveal data
-      let requestRecievedO1R = await o1.queryFilter(o1.filters.RequestRecieved());
-      let requestRecievedO2R = await o2.queryFilter(o2.filters.RequestRecieved());
-      let argsO1R = requestRecievedO1R[1].args;
-      let argsO2R = requestRecievedO2R[1].args;
+      let requestRecievedO1R = await o1.queryFilter(o1.filters.RequestReveal());
+      let requestRecievedO2R = await o2.queryFilter(o2.filters.RequestReveal());
+      let argsO1R = requestRecievedO1R[0].args;
+      let argsO2R = requestRecievedO2R[0].args;
       // Oracles contract send the reveal data to Aggregator
       await expect(o1.revealOracleRequest(argsO1R._requestId, argsO1R._callbackAddress, argsO1R._callbackFunctionId, data1, salt1))
         .to.emit(agg, "ResponseReceived");
@@ -117,7 +118,7 @@ describe("Oracle", function () {
     });
   })
 
-  describe("Freeloaing", function () {
+  describe("Freeloading", function () {
     // run the fixture before each test
     const data1 = 10;
     const data2 = 19;
@@ -143,8 +144,8 @@ describe("Oracle", function () {
       await expect(o2.commitOracleRequest(argsO2C._requestId, argsO2C._callbackAddress, argsO2C._callbackFunctionId, hash2))
         .to.emit(agg, "CommitReceived");
       // Oracle node recieves request and perpare reveal data
-      let requestRecievedO1R = await o1.queryFilter(o1.filters.RequestRecieved());
-      let argsO1R = requestRecievedO1R[1].args;
+      let requestRecievedO1R = await o1.queryFilter(o1.filters.RequestReveal());
+      let argsO1R = requestRecievedO1R[0].args;
 
       // notice we reveal with wrong data/salt
       await expect(o1.revealOracleRequest(argsO1R._requestId, argsO1R._callbackAddress, argsO1R._callbackFunctionId, data1, salt2))

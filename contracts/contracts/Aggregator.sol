@@ -4,7 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import "./interfaces/IAggregator.sol";
 import "./interfaces/INaiveToken.sol";
 import "./interfaces/IRequestInterface.sol";
-import "hardhat/console.sol";
+
 /**
  * @title A naive chain aggregator
  */ 
@@ -19,9 +19,26 @@ contract Aggregator is IAggregator {
 
       uint256 commitAmt;
       uint256 revealAmt;
+      mapping(address => bool) commitAddress;
+      mapping(address => bool) revealAddress;
+      mapping(address => uint) startedAt;
+      mapping(address => uint) endedAt;
       // oracle address => CommitReveal
       
     }
+
+    struct Metrics {
+        int256 assignedRequest;
+        int256 completedRequest;
+        int256 acceptedRequest;
+        //TODO: investigate time in the blockchain more 
+        //      current implementation of avg response time rely on block.timestamp
+        //      which only updates every 15 sec? if that's true tracking is metric is useless 
+        //      on the block chain
+        uint averageResponseTime;
+    }
+
+    mapping(address => Metrics) public TrackedMetrics;
 
     struct CommitReveal{
         bytes32 commit; // could change this to address to reduce gas fees
@@ -55,18 +72,21 @@ contract Aggregator is IAggregator {
     function getAnswer(uint256 _responseAmt, uint256 _paymentAmt, address _callbackAddress, bytes4 _callbackFunctionSignature) external returns (bytes32 requestId) {
         require(_responseAmt <= oracles.length, "cannot request for more oracle than held by the contract");
         requestId = keccak256(abi.encodePacked(_responseAmt, _paymentAmt, _callbackAddress, _callbackFunctionSignature));
-        Answer memory ans;
+        Answer storage ans = answers[requestId];
         ans.responseAmt = _responseAmt;
         ans.requestId = requestId;
         ans.callbackFunctionId = _callbackFunctionSignature;
         ans.callbackAddress = _callbackAddress;
         ans.commitAmt = 0;
         ans.revealAmt = 0;
-        answers[requestId] = ans;
 
         // call responseAmt amount of the oracles to find the answers
         for (uint i=0; i < _responseAmt; i++) {
             IRequestInterface oracle = IRequestInterface(oracles[i]);
+            // updated reputation metrics
+            TrackedMetrics[oracles[i]].assignedRequest += 1;
+            TrackedMetrics[oracles[i]].acceptedRequest += 1;
+            ans.startedAt[oracles[i]] = block.timestamp;
             require(
                 token.transferAndCall(
                     oracles[i], 
@@ -91,23 +111,22 @@ contract Aggregator is IAggregator {
     {
         Answer storage currentAns = answers[_requestId];
         require(currentAns.commitAmt < currentAns.responseAmt, "cannot submit more responses since the commit process is finished");
+        require(!currentAns.commitAddress[msg.sender], "Already commited");
 
-        // loop through the oracles to check if the commit hash is already exists
-        // to reduce gas fees, we can change the struct to commitReveal[_requestId][hash] = CommitReveal(address,reveal)
+        //// loop through the oracles to check if the commit hash is already exists
+        //// to reduce gas fees, we can change the struct to commitReveal[_requestId][hash] = CommitReveal(address,reveal)
         for (uint i=0; i < oracles.length; i++) {
-            // console.log("checking bro");
-            // console.logBytes32(commitReveal[_requestId][oracles[i]].commit);
-            // console.logBytes32(_commitHash);
             require(commitReveal[_requestId][oracles[i]].commit != _commitHash, "cannot submit the same commit twice");
-            // console.log("passed");
         }
 
         CommitReveal storage currentCR = commitReveal[_requestId][msg.sender];
         currentCR.commit = _commitHash;
         currentCR.reveal = 0;
+        currentAns.endedAt[msg.sender] = block.timestamp;
+
         
         emit CommitReceived(_requestId, _commitHash); //should I emit commitHash? (its not useful info thogh....)
-
+        currentAns.commitAddress[msg.sender] = true;
         currentAns.commitAmt++;
         if (currentAns.commitAmt == currentAns.responseAmt) {
             // initiate second round of oracle calls which reveal(data,salt)           
@@ -121,19 +140,12 @@ contract Aggregator is IAggregator {
         // call responseAmt amount of the oracles to find the answers
         for (uint i=0; i < currentAns.commitAmt; i++) {
             IRequestInterface oracle = IRequestInterface(oracles[i]);
-            require(
-                token.transferAndCall(
-                    oracles[i], 
-                    0, //price / currentAns.commitAmt, // may need change price
-                    abi.encodeWithSelector(
-                        oracle.oracleRequest.selector,
-                        msg.sender,
-                        0, //currentAns.commitAmt, // may need change price
-                        _requestId,
-                        address(this),
-                        this.revealCallback.selector
-                    )
-                ), "unable to transferAndCall to oracle"
+            oracle.oracleReveal(
+                msg.sender,
+                0, //currentAns.commitAmt, // may need change price
+                _requestId,
+                address(this),
+                this.revealCallback.selector
             );
         }
     }
@@ -144,7 +156,10 @@ contract Aggregator is IAggregator {
     function revealCallback(bytes32 _requestId, int256 _response, bytes32 _salt) external ensureOracleSender(msg.sender)
     {
         Answer storage currentAns = answers[_requestId];
+
         require(currentAns.revealAmt < currentAns.commitAmt, "cannot submit more responses since the reveal process is finished");
+        require(!currentAns.revealAddress[msg.sender], "Already revealed request");
+
         CommitReveal storage currentCR = commitReveal[_requestId][msg.sender];
 
         require(currentCR.commit == keccak256(abi.encodePacked(_response, _salt)), "invalid reveal");
@@ -152,6 +167,17 @@ contract Aggregator is IAggregator {
         currentAns.responses.push(_response);
         emit ResponseReceived(_requestId, _response);
         currentAns.revealAmt++;
+        currentAns.revealAddress[msg.sender] = true;
+
+        TrackedMetrics[msg.sender].assignedRequest -= 1;
+        TrackedMetrics[msg.sender].acceptedRequest += 1;
+        // updated average time
+        uint avg = TrackedMetrics[msg.sender].averageResponseTime;
+        uint comReq = uint(TrackedMetrics[msg.sender].completedRequest);
+        uint start = currentAns.startedAt[msg.sender];
+        uint end = currentAns.endedAt[msg.sender];
+        TrackedMetrics[msg.sender].averageResponseTime = ((avg * comReq) + (end - start)) / (comReq + 1);
+        TrackedMetrics[msg.sender].completedRequest += 1;
 
         if (currentAns.revealAmt == currentAns.commitAmt) {
             // all responses are received, call the callback function
@@ -161,6 +187,7 @@ contract Aggregator is IAggregator {
             emit Answered(_response);
         }
     }
+
 
     modifier ensureOracleSender(address _oracle){
         bool findOracle = false;

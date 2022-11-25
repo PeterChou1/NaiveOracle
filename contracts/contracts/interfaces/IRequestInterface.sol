@@ -10,5 +10,14 @@ interface IRequestInterface {
         address callbackAddress,
         bytes4 callbackFunctionId
     ) external;
+
+    function oracleReveal(
+        address _sender, 
+        uint256 _payment, 
+        bytes32 _requestId,
+        address _callbackAddress,
+        bytes4 _callbackFunctionId
+    ) external;
+
     
 }

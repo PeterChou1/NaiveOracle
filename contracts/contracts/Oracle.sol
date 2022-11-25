@@ -4,7 +4,6 @@ pragma solidity >=0.8.0 <0.9.0;
 import "./interfaces/IERC677Receiver.sol";
 import "./interfaces/INaiveToken.sol";
 import "./interfaces/IRequestInterface.sol";
-import "hardhat/console.sol";
 
 contract Oracle is IERC677Receiver, IRequestInterface {
 
@@ -17,10 +16,21 @@ contract Oracle is IERC677Receiver, IRequestInterface {
         bytes4 _callbackFunctionId
     );
 
+    event RequestReveal(
+        address indexed requester, 
+        uint256 _payment, 
+        bytes32 _requestId,
+        address _callbackAddress,
+        bytes4 _callbackFunctionId
+    );
+    
     INaiveToken private token;
+    address public owner;
+    mapping(bytes32 => address) oracleRequestTracker;
 
     constructor(address _NaiveToken) {
         token = INaiveToken(_NaiveToken);
+        owner = msg.sender;
     }
 
     function onTokenTransfer(
@@ -40,8 +50,26 @@ contract Oracle is IERC677Receiver, IRequestInterface {
         address _callbackAddress,
         bytes4 _callbackFunctionId
     ) external {
+        require(oracleRequestTracker[_requestId] == address(0), "request already assigned to an sender");
         emit RequestRecieved(_sender, _payment, _requestId, _callbackAddress, _callbackFunctionId);
+        oracleRequestTracker[_requestId] = _sender;
     }
+
+    function oracleReveal(
+        address _sender, 
+        uint256 _payment, 
+        bytes32 _requestId,
+        address _callbackAddress,
+        bytes4 _callbackFunctionId
+    ) external {
+        //TODO: this is somehow bugged
+        //require(oracleRequestTracker[_requestId] == msg.sender, "request cannot be reveal to a non sender");
+        emit RequestReveal(_sender, _payment, _requestId, _callbackAddress, _callbackFunctionId);
+    }
+
+
+
+
 
     function commitOracleRequest( //fulfillOracleRequest
         bytes32 _requestId,
@@ -49,6 +77,7 @@ contract Oracle is IERC677Receiver, IRequestInterface {
         bytes4 _callbackFunctionId,
         bytes32 _data
     )  external returns (bool) {
+        //TODO: make it only the oracle owner can commit orcale request
         //TODO: you can call this multiple times make it so that you can only fulfill a request once per ID?
         (bool success, ) = _callbackAddress.call(abi.encodeWithSelector(_callbackFunctionId, _requestId, _data));
         require(success, "failed to executed provided commit callback function");
