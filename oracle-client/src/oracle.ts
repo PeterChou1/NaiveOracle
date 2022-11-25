@@ -1,21 +1,17 @@
 require("dotenv").config();
 
 import { updateVolume } from "./ethereum";
-import fetch from 'node-fetch';
+import fetch from "node-fetch";
 
 const start = () => {
-  // fetch(options)
-  //   .then(parseData)
-  //   .then(updateVolume)
-  //   .then(restart)
-  //   .catch(error);
+  fetchData().then(parseData).then(updateVolume).then(restart).catch(error);
 };
 
-const fetchData = () => {
-  
-const response = await fetch('https://httpbin.org/post', {method: 'POST', body: 'a=1'});
-const data = await response.json();
-
+async function fetchData() {
+  const api = process.env.ETH_USD_API;
+  const response = await fetch(api);
+  const data = await response.json();
+  return data;
 }
 
 const parseData = (body: any) => {
@@ -38,7 +34,7 @@ const restart = () => {
 };
 
 const wait = (ms: number) => {
-  return new Promise((resolve) => setTimeout(() => resolve(void), ms));
+  return new Promise((resolve) => setTimeout(() => resolve(ms), ms));
 };
 
 const error = (error: any) => {
