@@ -1,30 +1,41 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0 <0.9.0;
 
-import "./interfaces/IAggregator.sol";
 import "./interfaces/INaiveToken.sol";
+
+import "./interfaces/IServerLevelAggrement.sol";
+import "./interfaces/IAggregator.sol";
+
 import "./interfaces/IRequestInterface.sol";
+
 
 /**
  * @title A naive chain aggregator
  */ 
-contract Aggregator is IAggregator {
+contract SLA is IServerLevelAggrement {
 
     struct Answer {
-      uint256 responseAmt;
-      int256[] responses; // reveal
-      address callbackAddress;
-      bytes4 callbackFunctionId;
-      bytes32 requestId;
+        // basic request info
+        bytes32 requestId;
+        uint256 paymentAmt;
+        uint256 responseAmt;
+        address callbackAddress;
+        bytes4 callbackFunctionId;
+        
+        // order-matching
+        address[] oracles;
 
-      uint256 commitAmt;
-      uint256 revealAmt;
-      mapping(address => bool) commitAddress;
-      mapping(address => bool) revealAddress;
-      mapping(address => uint) startedAt;
-      mapping(address => uint) endedAt;
-      // oracle address => CommitReveal
-      
+        // aggregation with commit/reveal
+        uint256 commitAmt;
+        uint256 revealAmt;
+        mapping(address => bool) commitAddress;
+        mapping(address => bool) revealAddress;
+        int256[] responses;
+        
+        // reputation
+        mapping(address => uint) startedAt;
+        mapping(address => uint) endedAt;
+        // oracle address => CommitReveal
     }
 
     struct Metrics {
@@ -55,33 +66,76 @@ contract Aggregator is IAggregator {
 
     // uint128 minResponses;
 
-    event CommitReceived(bytes32 requestId, bytes32 response);
-    event ResponseReceived(bytes32 requestId, int256 response);
+ 
 
-    address[] private oracles;
-  
-    constructor(address[] memory _oracles, address _NaiveChainToken) {
-        oracles = _oracles;
+    // address[] private oracles;
+
+    constructor(address _NaiveChainToken) {
+        // oracles = _oracles;
         token = INaiveToken(_NaiveChainToken);
         // minResponses = _minResponses;
     }
     
+    // ORDER MATCHING ------------------------------------------------------------
+
+
+    function broadcastOrder(uint256 _responseAmt, uint256 _paymentAmt, address _callbackAddress, bytes4 _callbackFunctionSignature) external returns (bytes32 requestId){
+        requestId = keccak256(abi.encodePacked(_responseAmt, _paymentAmt, _callbackAddress, _callbackFunctionSignature));
+        // initialize requestId with empty Answer 
+        Answer storage ans = answers[requestId];
+        ans.requestId = requestId;
+        ans.paymentAmt = _paymentAmt;
+        ans.responseAmt = _responseAmt;
+        ans.callbackAddress = _callbackAddress;
+        ans.callbackFunctionId = _callbackFunctionSignature; // user contract's callback info
+
+        ans.commitAmt = 0;
+        ans.revealAmt = 0;
+        // broadcast basic order information with register handle to the public
+        emit OrderBroadcasted(requestId, msg.sender, _paymentAmt, _responseAmt, address(this), this.matchCallback.selector);
+    }
+
+    // this function is called by an oracle when they accepts the match
+    function matchCallback(bytes32 _requestId) external {
+        Answer storage ans = answers[_requestId];
+        address[] storage oracles = ans.oracles;
+
+        require(oracles.length < ans.responseAmt, "request already matched");
+        for (uint i = 0; i < oracles.length; i++){
+            require(oracles[i] != msg.sender, "oracle already matched");
+        }
+        oracles.push(msg.sender);
+
+        // if the amount of oracles is equal to the amount of responses required
+        // then the order is matched
+        if(oracles.length == answers[_requestId].responseAmt){
+            // emit event to notify the requester that the order is matched
+            emit OrderMatched(_requestId, oracles);
+
+            // other possible implementation: 
+            // 1. start the commit here
+            // 2. pay when reveal finished?
+
+            // transfer payment to the oracles so user covers the cost of the gas fees
+            this.getAnswer(_requestId);
+        }
+    }
+    // ORDER MATCHING ------------------------------------------------------------
+
     /**
     * @dev get the generic API response from oracle 
     */
-    function getAnswer(uint256 _responseAmt, uint256 _paymentAmt, address _callbackAddress, bytes4 _callbackFunctionSignature) external returns (bytes32 requestId) {
-        require(_responseAmt <= oracles.length, "cannot request for more oracle than held by the contract");
-        requestId = keccak256(abi.encodePacked(_responseAmt, _paymentAmt, _callbackAddress, _callbackFunctionSignature));
-        Answer storage ans = answers[requestId];
-        ans.responseAmt = _responseAmt;
-        ans.requestId = requestId;
-        ans.callbackFunctionId = _callbackFunctionSignature;
-        ans.callbackAddress = _callbackAddress;
-        ans.commitAmt = 0;
-        ans.revealAmt = 0;
+    function getAnswer(bytes32 _requestId) external {
+        Answer storage ans = answers[_requestId];
 
+        uint256 paymentAmt = ans.paymentAmt;
+        uint256 responseAmt = ans.responseAmt;
+        address[] memory oracles = ans.oracles;
+
+        require(responseAmt <= oracles.length, "cannot request for more oracle than held by the contract");
+        
         // call responseAmt amount of the oracles to find the answers
-        for (uint i=0; i < _responseAmt; i++) {
+        for (uint i=0; i < responseAmt; i++) {
             IRequestInterface oracle = IRequestInterface(oracles[i]);
             // updated reputation metrics
             TrackedMetrics[oracles[i]].assignedRequest += 1;
@@ -90,12 +144,12 @@ contract Aggregator is IAggregator {
             require(
                 token.transferAndCall(
                     oracles[i], 
-                    _paymentAmt / _responseAmt, 
+                    paymentAmt / responseAmt, 
                     abi.encodeWithSelector(
                         oracle.oracleRequest.selector,
                         msg.sender,
-                        _paymentAmt / _responseAmt,
-                        requestId,
+                        paymentAmt / responseAmt,
+                        _requestId,
                         address(this),
                         this.commitCallback.selector
                     )
@@ -107,9 +161,11 @@ contract Aggregator is IAggregator {
     /**
     * @dev the oracle contract will use submit the respxonse through this request callback
     */
-    function commitCallback(bytes32 _requestId, bytes32 _commitHash) external ensureOracleSender(msg.sender)
+    function commitCallback(bytes32 _requestId, bytes32 _commitHash) external ensureMatchedOracleSender(_requestId, msg.sender)
     {
         Answer storage currentAns = answers[_requestId];
+        address[] memory oracles = currentAns.oracles;
+
         require(currentAns.commitAmt < currentAns.responseAmt, "cannot submit more responses since the commit process is finished");
         require(!currentAns.commitAddress[msg.sender], "Already commited");
 
@@ -139,7 +195,7 @@ contract Aggregator is IAggregator {
         Answer storage currentAns = answers[_requestId];
         // call responseAmt amount of the oracles to find the answers
         for (uint i=0; i < currentAns.commitAmt; i++) {
-            IRequestInterface oracle = IRequestInterface(oracles[i]);
+            IRequestInterface oracle = IRequestInterface(currentAns.oracles[i]);
             oracle.oracleReveal(
                 msg.sender,
                 0, //currentAns.commitAmt, // may need change price
@@ -153,7 +209,7 @@ contract Aggregator is IAggregator {
     /**
     * @dev the oracle contract will use submit the respxonse through this request callback
     */
-    function revealCallback(bytes32 _requestId, int256 _response, bytes32 _salt) external ensureOracleSender(msg.sender)
+    function revealCallback(bytes32 _requestId, int256 _response, bytes32 _salt) external ensureMatchedOracleSender(_requestId, msg.sender)
     {
         Answer storage currentAns = answers[_requestId];
 
@@ -189,7 +245,9 @@ contract Aggregator is IAggregator {
     }
 
 
-    modifier ensureOracleSender(address _oracle){
+    modifier ensureMatchedOracleSender(bytes32 _requestId, address _oracle){
+        address[] memory oracles = answers[_requestId].oracles;
+
         bool findOracle = false;
         for (uint i=0; i < oracles.length; i++) {
             if (oracles[i] == _oracle) {

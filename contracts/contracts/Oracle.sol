@@ -43,6 +43,17 @@ contract Oracle is IERC677Receiver, IRequestInterface {
         require(success, "failed to oracle execute request");
     }
 
+    // order-matching
+    function acceptOrder(
+        bytes32 _requestId,
+        address _callbackAddress,
+        bytes4 _callbackFunctionId // calling SLA.matchCallback
+    )  external returns (bool) {
+        (bool success, ) = _callbackAddress.call(abi.encodeWithSelector(_callbackFunctionId, _requestId));
+        require(success, "failed to executed provided match callback function");
+    }
+
+    // aggregator
     function oracleRequest(
         address _sender, 
         uint256 _payment, 
@@ -66,10 +77,6 @@ contract Oracle is IERC677Receiver, IRequestInterface {
         //require(oracleRequestTracker[_requestId] == msg.sender, "request cannot be reveal to a non sender");
         emit RequestReveal(_sender, _payment, _requestId, _callbackAddress, _callbackFunctionId);
     }
-
-
-
-
 
     function commitOracleRequest( //fulfillOracleRequest
         bytes32 _requestId,
