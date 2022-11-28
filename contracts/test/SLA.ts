@@ -101,7 +101,6 @@ describe("SLA", function () {
     const salt2 = ethers.utils.randomBytes(32); // generate random salt
     const hash2 = ethers.utils.solidityKeccak256(["uint256", "bytes32"], [data2, salt2]); // generate random hash from salt and data
 
-   
     it("Aggregator should reject invalid reveal (with wrong data or salt)", async function () {
       const { user, sla, o1, o2, token, owner } = await loadFixture(deployAggregatorContract);
       

@@ -2,12 +2,10 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "./interfaces/INaiveToken.sol";
-
 import "./interfaces/IServerLevelAggrement.sol";
 import "./interfaces/IAggregator.sol";
-
 import "./interfaces/IRequestInterface.sol";
-
+// import "./utils/utils.sol";
 
 /**
  * @title A naive chain aggregator
@@ -47,6 +45,7 @@ contract SLA is IServerLevelAggrement {
         //      which only updates every 15 sec? if that's true tracking is metric is useless 
         //      on the block chain
         uint averageResponseTime;
+        // int256 penaltyAmt; // last item 
     }
 
     mapping(address => Metrics) public TrackedMetrics;
@@ -57,18 +56,9 @@ contract SLA is IServerLevelAggrement {
     }
 
     INaiveToken private token;
-    
-    // requestId(answer index) => commit => reveal
-    // mapping(bytes32 => mapping(int256 => int256)) private commitReveal; // outside of Answer to pervent nested mapping in memory
 
     mapping(bytes32 => Answer) private answers;
     mapping(bytes32 => mapping(address => CommitReveal)) commitReveal;
-
-    // uint128 minResponses;
-
- 
-
-    // address[] private oracles;
 
     constructor(address _NaiveChainToken) {
         // oracles = _oracles;
@@ -77,7 +67,6 @@ contract SLA is IServerLevelAggrement {
     }
     
     // ORDER MATCHING ------------------------------------------------------------
-
 
     function broadcastOrder(uint256 _responseAmt, uint256 _paymentAmt, address _callbackAddress, bytes4 _callbackFunctionSignature) external returns (bytes32 requestId){
         requestId = keccak256(abi.encodePacked(_responseAmt, _paymentAmt, _callbackAddress, _callbackFunctionSignature));
@@ -120,6 +109,7 @@ contract SLA is IServerLevelAggrement {
             this.getAnswer(_requestId);
         }
     }
+
     // ORDER MATCHING ------------------------------------------------------------
 
     /**
@@ -237,13 +227,22 @@ contract SLA is IServerLevelAggrement {
 
         if (currentAns.revealAmt == currentAns.commitAmt) {
             // all responses are received, call the callback function
-            bytes memory payload = abi.encodeWithSelector(currentAns.callbackFunctionId, _requestId, _response);
+            int256 result = aggregator(_requestId);
+            bytes memory payload = abi.encodeWithSelector(currentAns.callbackFunctionId, _requestId, result);
             (bool success, ) = currentAns.callbackAddress.call(payload);
             require(success, "unable to call the callback function");
-            emit Answered(_response);
+            emit Answered(result);
         }
     }
 
+    function aggregator(bytes32 _requestId) public returns (int256) {
+        Answer storage currentAns = answers[_requestId];
+        require(currentAns.revealAmt == currentAns.commitAmt, "cannot get the answer since the reveal process is not finished");
+        // should follow the implementation of ./utils/utils.ts
+        // 1. update the reputation metrics
+        // 2. slashing Naive coin for bad behaviour
+        return currentAns.responses[1];
+    }
 
     modifier ensureMatchedOracleSender(bytes32 _requestId, address _oracle){
         address[] memory oracles = answers[_requestId].oracles;
