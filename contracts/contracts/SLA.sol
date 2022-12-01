@@ -56,6 +56,7 @@ contract SLA is IServerLevelAggrement {
     }
 
     INaiveToken private token;
+    uint256 orderNumber;
 
     mapping(bytes32 => Answer) private answers;
     mapping(bytes32 => mapping(address => CommitReveal)) commitReveal;
@@ -63,13 +64,14 @@ contract SLA is IServerLevelAggrement {
     constructor(address _NaiveChainToken) {
         // oracles = _oracles;
         token = INaiveToken(_NaiveChainToken);
+        orderNumber = 0;
         // minResponses = _minResponses;
     }
     
     // ORDER MATCHING ------------------------------------------------------------
 
     function broadcastOrder(uint256 _responseAmt, uint256 _paymentAmt, address _callbackAddress, bytes4 _callbackFunctionSignature) external returns (bytes32 requestId){
-        requestId = keccak256(abi.encodePacked(_responseAmt, _paymentAmt, _callbackAddress, _callbackFunctionSignature));
+        requestId = keccak256(abi.encodePacked(_responseAmt, _paymentAmt, _callbackAddress, _callbackFunctionSignature, orderNumber));
         // initialize requestId with empty Answer 
         Answer storage ans = answers[requestId];
         ans.requestId = requestId;
@@ -77,11 +79,11 @@ contract SLA is IServerLevelAggrement {
         ans.responseAmt = _responseAmt;
         ans.callbackAddress = _callbackAddress;
         ans.callbackFunctionId = _callbackFunctionSignature; // user contract's callback info
-
         ans.commitAmt = 0;
         ans.revealAmt = 0;
         // broadcast basic order information with register handle to the public
         emit OrderBroadcasted(requestId, msg.sender, _paymentAmt, _responseAmt, address(this), this.matchCallback.selector);
+        orderNumber++;
     }
 
     // this function is called by an oracle when they accepts the match
@@ -202,10 +204,9 @@ contract SLA is IServerLevelAggrement {
     function revealCallback(bytes32 _requestId, int256 _response, bytes32 _salt) external ensureMatchedOracleSender(_requestId, msg.sender)
     {
         Answer storage currentAns = answers[_requestId];
-
-        require(currentAns.revealAmt < currentAns.commitAmt, "cannot submit more responses since the reveal process is finished");
+        require(currentAns.revealAmt < currentAns.responseAmt, "cannot submit more responses since the reveal process is finished");
         require(!currentAns.revealAddress[msg.sender], "Already revealed request");
-
+        
         CommitReveal storage currentCR = commitReveal[_requestId][msg.sender];
 
         require(currentCR.commit == keccak256(abi.encodePacked(_response, _salt)), "invalid reveal");
@@ -214,10 +215,10 @@ contract SLA is IServerLevelAggrement {
         emit ResponseReceived(_requestId, _response);
         currentAns.revealAmt++;
         currentAns.revealAddress[msg.sender] = true;
-
+        
         TrackedMetrics[msg.sender].assignedRequest -= 1;
         TrackedMetrics[msg.sender].acceptedRequest += 1;
-        // updated average time
+
         uint avg = TrackedMetrics[msg.sender].averageResponseTime;
         uint comReq = uint(TrackedMetrics[msg.sender].completedRequest);
         uint start = currentAns.startedAt[msg.sender];
@@ -225,23 +226,23 @@ contract SLA is IServerLevelAggrement {
         TrackedMetrics[msg.sender].averageResponseTime = ((avg * comReq) + (end - start)) / (comReq + 1);
         TrackedMetrics[msg.sender].completedRequest += 1;
 
-        if (currentAns.revealAmt == currentAns.commitAmt) {
-            // all responses are received, call the callback function
+        if (currentAns.revealAmt == currentAns.responseAmt) {
+        // all responses are received, call the callback function
             int256 result = aggregator(_requestId);
             bytes memory payload = abi.encodeWithSelector(currentAns.callbackFunctionId, _requestId, result);
             (bool success, ) = currentAns.callbackAddress.call(payload);
-            require(success, "unable to call the callback function");
-            emit Answered(result);
+                //require(success, "unable to call the callback function");
+            emit Answered(_response);
         }
     }
 
     function aggregator(bytes32 _requestId) public returns (int256) {
         Answer storage currentAns = answers[_requestId];
-        require(currentAns.revealAmt == currentAns.commitAmt, "cannot get the answer since the reveal process is not finished");
+        require(currentAns.revealAmt == currentAns.responseAmt, "cannot get the answer since the reveal process is not finished");
         // should follow the implementation of ./utils/utils.ts
         // 1. update the reputation metrics
         // 2. slashing Naive coin for bad behaviour
-        return currentAns.responses[1];
+        return currentAns.responses[0];
     }
 
     modifier ensureMatchedOracleSender(bytes32 _requestId, address _oracle){

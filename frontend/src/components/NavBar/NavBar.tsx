@@ -9,7 +9,6 @@ import {
   ChakraProvider,
 } from "@chakra-ui/react";
 import { useWallet } from "../../contexts/WalletContext";
-import { trimAddress } from "../../utils/utils";
 
 declare let window: any;
 
@@ -74,7 +73,7 @@ export const NavBar = () => {
                     rounded="3xl"
                     width="9xs"
                   >
-                    Connected [{trimAddress(wallet.currentAccount)}]
+                    Connected [{wallet.currentAccount}]
                   </Button>
                 ) : (
                   <Button

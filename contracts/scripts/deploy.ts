@@ -1,25 +1,38 @@
 import { ethers } from "hardhat";
 
 async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
-  const unlockTime = currentTimestampInSeconds + ONE_YEAR_IN_SECS;
+  const [deployer] = await ethers.getSigners();
+  console.log("Deploying contracts with the account:", deployer.address);
+  console.log("Account balance:", (await deployer.getBalance()).toString());
 
-  const lockedAmount = ethers.utils.parseEther("1");
+  const Token = await ethers.getContractFactory("NaiveToken");
+  const token = await Token.deploy("NaiveToken", "NAIV");
+  // TOKEN is not deployed yet wait until it mined
+  await token.deployed();
+  console.log("Token deployed at address: " + token.address);
 
-  const Lock = await ethers.getContractFactory("Lock");
-  const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
+  const Oracle = await ethers.getContractFactory("Oracle");
+  const oracle = await Oracle.deploy(token.address);
+  await oracle.deployed();
+  console.log("Oracle deployed at address: " + oracle.address);
 
-  await lock.deployed();
 
-  console.log(
-    `Lock with 1 ETH and unlock timestamp ${unlockTime} deployed to ${lock.address}`
-  );
+  const SLA = await ethers.getContractFactory("SLA");
+  const sla = await SLA.deploy(token.address);
+  await sla.deployed();
+  console.log("SLA deployed at address: " + sla.address);
+
+  const UserContract = await ethers.getContractFactory("UserContract");
+  const usercontract = await UserContract.deploy(sla.address);
+  await usercontract.deployed();
+  console.log("User contract deployed at: " + usercontract.address);
 }
 
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
-main().catch((error) => {
+main()
+.then(() => process.exit(0))
+.catch((error) => {
   console.error(error);
-  process.exitCode = 1;
+  process.exit(1);
 });
+
+//npx hardhat run scripts/deploy.ts --network goerli
