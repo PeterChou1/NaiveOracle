@@ -87,7 +87,7 @@ contract Oracle is IERC677Receiver, IRequestInterface {
         //TODO: make it only the oracle owner can commit orcale request
         //TODO: you can call this multiple times make it so that you can only fulfill a request once per ID?
         (bool success, ) = _callbackAddress.call(abi.encodeWithSelector(_callbackFunctionId, _requestId, _data));
-        // require(success, "failed to executed provided commit callback function");
+        require(success, "failed to executed provided commit callback function");
         return success;
     }
 
@@ -100,7 +100,7 @@ contract Oracle is IERC677Receiver, IRequestInterface {
     )  external returns (bool) {
         //TODO: you can call this multiple times make it so that you can only fulfill a request once per ID?
         (bool success, bytes memory returnData) = _callbackAddress.call(abi.encodeWithSelector(_callbackFunctionId, _requestId, _data, _salt));
-        // require(success, "failed to executed provided reveal callback function");
+        require(success, "failed to executed provided reveal callback function");
         // console.log(returnData);
         // require(success, string(returnData));
         // if (returnData.length > 0) {
