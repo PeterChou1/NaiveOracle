@@ -55,5 +55,4 @@ typings/
 *.tgz
 
 # dotenv environment variables file
-.env
 lib/
