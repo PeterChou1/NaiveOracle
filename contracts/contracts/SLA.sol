@@ -6,6 +6,8 @@ import "./interfaces/IServerLevelAggrement.sol";
 import "./interfaces/IAggregator.sol";
 import "./interfaces/IRequestInterface.sol";
 // import "./utils/utils.sol";
+// import "hardhat/console.sol";
+// import "./interfaces/IERC677.sol";
 
 /**
  * @title A naive chain aggregator
@@ -30,7 +32,7 @@ contract SLA is IServerLevelAggrement {
         mapping(address => bool) revealAddress;
         int256[] responses;
 
-        // only to be used for tracking the response sender---
+        // tracking the response sender
         mapping(int256 => address[]) responseSenders;
         address[] slashOracles;
 
@@ -60,6 +62,7 @@ contract SLA is IServerLevelAggrement {
     }
 
     INaiveToken private token;
+    address public tokenAddress; // public for testing purposes
     uint256 orderNumber;
 
     mapping(bytes32 => Answer) public answers; // private -> public for testing
@@ -69,6 +72,7 @@ contract SLA is IServerLevelAggrement {
         // oracles = _oracles;
         token = INaiveToken(_NaiveChainToken);
         orderNumber = 0;
+        tokenAddress = _NaiveChainToken;
         // minResponses = _minResponses;
     }
     
@@ -86,20 +90,21 @@ contract SLA is IServerLevelAggrement {
         ans.commitAmt = 0;
         ans.revealAmt = 0;
         // broadcast basic order information with register handle to the public
-        emit OrderBroadcasted(requestId, msg.sender, _paymentAmt, _responseAmt, address(this), this.matchCallback.selector);
+        emit OrderBroadcasted(requestId, msg.sender, _paymentAmt, _responseAmt, _paymentAmt, address(this), this.matchCallback.selector);
         orderNumber++;
     }
 
     // this function is called by an oracle when they accepts the match
-    function matchCallback(bytes32 _requestId) external {
+    // only NaiveToken can call this function
+    function matchCallback(address _oracleAdd, bytes32 _requestId) external{
         Answer storage ans = answers[_requestId];
         address[] storage oracles = ans.oracles;
 
         require(oracles.length < ans.responseAmt, "request already matched");
         for (uint i = 0; i < oracles.length; i++){
-            require(oracles[i] != msg.sender, "oracle already matched");
+            require(oracles[i] != _oracleAdd, "oracle already matched");
         }
-        oracles.push(msg.sender);
+        oracles.push(_oracleAdd);
 
         // if the amount of oracles is equal to the amount of responses required
         // then the order is matched
@@ -254,14 +259,13 @@ contract SLA is IServerLevelAggrement {
         // should follow the implementation of ./utils/utils.ts
         // 1. update the reputation metrics
         // 2. slashing Naive coin for bad behaviour
+        // mapping(int256 => address[]) responseSenders;
+        // address[] slashOracles;
+
         int256 minimum = 0;
         int256 maximum = 80000;
         int256 buffer = (maximum - minimum) / 2;
 
-        // for (uint i=0; i < currentAns.responses.length; i++) {
-        //     console.logInt(currentAns.responses[i]);
-        // }
-        // sort the values in currentAns.responses
         for (uint i=0; i < currentAns.responses.length; i++) {
             for (uint j=i+1; j < currentAns.responses.length; j++) {
                 if (currentAns.responses[i] > currentAns.responses[j]) {
@@ -271,28 +275,66 @@ contract SLA is IServerLevelAggrement {
                 }
             }
         }
-        // // print the currentAns.responses
-        // console.log("after sort");
-        // for (uint i=0; i < currentAns.responses.length; i++) {
-        //     console.logInt(currentAns.responses[i]);
-        // }
 
         int256 median = currentAns.responses[currentAns.responses.length / 2];
 
         for (uint i=0; i < currentAns.responses.length; i++) {
             int256 value = currentAns.responses[i];
             if (value > median + buffer || value < median - buffer) {
-                // concat slashOracles to currentAns.responseSender[value]
+                // add oracles to slashOracles because they are not honest
                 for (uint j=0; j < currentAns.responseSenders[value].length; j++) {
                     currentAns.slashOracles.push(currentAns.responseSenders[value][j]);
                 }
             }
         }
         
+        // loop through the 
+        for (uint i=0; i < currentAns.oracles.length; i++) {
+            address currentOracle = currentAns.oracles[i];
+            bool goodOracle = true;
+            for (uint j=0; j < currentAns.slashOracles.length; j++) {
+                if(currentOracle == currentAns.slashOracles[j]) {
+                    goodOracle = false;
+                    break;
+                }
+            }
+            if(goodOracle) {
+                token.transferStakeToOracle(currentOracle, currentAns.paymentAmt);
+            }
+        }
 
+        // require(
+        //     token.transferAndAcceptOrder(_callbackAddress,_stakeAmt, _requestId), 
+        //     "failed to executed provided match callback function"
+        // );
 
         return median;
     }
+
+
+
+    // Reference types that are part of structure are not bing returned with the structure data
+    // Hence this function is created for testing purpose
+    function getSlashOracles(bytes32 _requestId) external view returns (address[] memory) {
+        return answers[_requestId].slashOracles;
+    }
+    function getStakeAmt(bytes32 _requestId) external view returns (uint256) {
+        return answers[_requestId].paymentAmt;
+    }
+    function getTokenAddress() external view returns (address) {
+        return tokenAddress;
+    }
+
+    // // receive stake from the oracle
+    // function onTokenTransfer(
+    //     address _sender,
+    //     uint256 _amount,
+    //     bytes calldata _data
+    // )
+    // public onlyUseToken() {
+    //     (bool success, bytes memory data) = address(this).delegatecall(_data);
+    //     require(success, "failed to execute request after reveive stake from the oracle");
+    // }
 
     modifier ensureMatchedOracleSender(bytes32 _requestId, address _oracle){
         address[] memory oracles = answers[_requestId].oracles;
@@ -308,16 +350,11 @@ contract SLA is IServerLevelAggrement {
             _;
         }
     }
-
-    // Reference types that are part of structure are not bing returned with the structure data
-    // Hence this function is created for testing purpose
-    function getSlashOracles(bytes32 _requestId) external view returns (address[] memory) {
-        // address[] slashOracles = answers[_requestId].slashOracles;
-        // console.log(slashOracles);
-        // console.log("slashedssdd");
-        return answers[_requestId].slashOracles;
-        // for (uint i=0; i < slashOracles.length; i++) {
-        //     console.log(slashOracles[i]);
-        // }
-    }
+    // /**
+    // * @dev Reverts if not using Naive Token
+    // */
+    // modifier onlyUseToken() {
+    //     require(msg.sender == address(token), "Must use Naive token");
+    //     _;
+    // }
 }

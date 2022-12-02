@@ -43,14 +43,34 @@ contract Oracle is IERC677Receiver, IRequestInterface {
         require(success, "failed to oracle execute request");
     }
 
+//   event OrderBroadcasted(
+//         bytes32 requestId,
+//         address indexed requester,
+//         uint256 payment,
+//         uint256 responseAmt,
+//         uint256 stakeAmt,
+//         address callbackAddress,
+//         bytes4 callbackFunctionId
+//   );
+
     // order-matching
     function acceptOrder(
         bytes32 _requestId,
         address _callbackAddress,
-        bytes4 _callbackFunctionId // calling SLA.matchCallback
+        bytes4 _callbackFunctionId, // calling SLA.matchCallback
+        uint256 _stakeAmt
     )  external returns (bool) {
-        (bool success, ) = _callbackAddress.call(abi.encodeWithSelector(_callbackFunctionId, _requestId));
-        require(success, "failed to executed provided match callback function");
+        // (bool success, ) = _callbackAddress.call(abi.encodeWithSelector(_callbackFunctionId, _requestId));
+        // require(success, "failed to executed provided match callback function");
+        // bytes calldata data = abi.encodeWithSelector(
+        //     _callbackFunctionId,
+        //     _requestId
+        // );
+
+        require(
+            token.transferAndAcceptOrder(_callbackAddress,_stakeAmt, _requestId), 
+            "failed to executed provided match callback function"
+        );
     }
 
     // aggregator

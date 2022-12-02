@@ -2,6 +2,8 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
 
+const ONE_NAIVE = ethers.utils.parseEther('1');
+
 describe("SLA", function () {
   // We define a fixture to reuse the same setup in every test.
   // We use loadFixture to run this setup once, snapshot that state,
@@ -24,6 +26,9 @@ describe("SLA", function () {
 
     const UserContract = await ethers.getContractFactory("UserContract");
     const user = await UserContract.deploy(sla.address);
+
+    // const naiveTokenAddress = await sla.tokenAddress();
+    // const naiveToken = await ethers.getContractAt("NaiveToken", naiveTokenAddress);
 
     return { sla, o1, o2, o3, user, token, owner, account1, otherAccount };
   }
@@ -50,10 +55,10 @@ describe("SLA", function () {
         // .to.emit(o2, "RequestRecieved");
       let OrderBroadcasted = await sla.queryFilter(sla.filters.OrderBroadcasted());
       let orderArgs = OrderBroadcasted[0].args;
-      await expect(o1.acceptOrder(orderArgs.requestId, orderArgs.callbackAddress, orderArgs.callbackFunctionId))
+      await expect(o1.acceptOrder(orderArgs.requestId, orderArgs.callbackAddress, orderArgs.callbackFunctionId, orderArgs.payment))
         .to.not.emit(sla, "OrderMatched")
         .to.not.emit(o1, "RequestRecieved");
-      await expect(o2.acceptOrder(orderArgs.requestId, orderArgs.callbackAddress, orderArgs.callbackFunctionId))
+      await expect(o2.acceptOrder(orderArgs.requestId, orderArgs.callbackAddress, orderArgs.callbackFunctionId, orderArgs.payment))
         .to.emit(sla, "OrderMatched") // enough oracle accepted, trigger aggregation->getAnswer
         .to.emit(o1, "RequestRecieved")
         .to.emit(o2, "RequestRecieved");
@@ -116,10 +121,10 @@ describe("SLA", function () {
       // .to.emit(o2, "RequestRecieved");
       let OrderBroadcasted = await sla.queryFilter(sla.filters.OrderBroadcasted());
       let orderArgs = OrderBroadcasted[0].args;
-      await expect(o1.acceptOrder(orderArgs.requestId, orderArgs.callbackAddress, orderArgs.callbackFunctionId))
+      await expect(o1.acceptOrder(orderArgs.requestId, orderArgs.callbackAddress, orderArgs.callbackFunctionId, orderArgs.payment))
         .to.not.emit(sla, "OrderMatched")
         .to.not.emit(o1, "RequestRecieved");
-      await expect(o2.acceptOrder(orderArgs.requestId, orderArgs.callbackAddress, orderArgs.callbackFunctionId))
+      await expect(o2.acceptOrder(orderArgs.requestId, orderArgs.callbackAddress, orderArgs.callbackFunctionId, orderArgs.payment))
         .to.emit(sla, "OrderMatched") // enough oracle accepted, trigger aggregation->getAnswer
         .to.emit(o1, "RequestRecieved")
         .to.emit(o2, "RequestRecieved");
@@ -155,10 +160,10 @@ describe("SLA", function () {
       // .to.emit(o2, "RequestRecieved");
       let OrderBroadcasted = await sla.queryFilter(sla.filters.OrderBroadcasted());
       let orderArgs = OrderBroadcasted[0].args;
-      await expect(o1.acceptOrder(orderArgs.requestId, orderArgs.callbackAddress, orderArgs.callbackFunctionId))
+      await expect(o1.acceptOrder(orderArgs.requestId, orderArgs.callbackAddress, orderArgs.callbackFunctionId, orderArgs.payment))
         .to.not.emit(sla, "OrderMatched")
         .to.not.emit(o1, "RequestRecieved");
-      await expect(o2.acceptOrder(orderArgs.requestId, orderArgs.callbackAddress, orderArgs.callbackFunctionId))
+      await expect(o2.acceptOrder(orderArgs.requestId, orderArgs.callbackAddress, orderArgs.callbackFunctionId, orderArgs.payment))
         .to.emit(sla, "OrderMatched") // enough oracle accepted, trigger aggregation->getAnswer
         .to.emit(o1, "RequestRecieved")
         .to.emit(o2, "RequestRecieved");
@@ -177,29 +182,96 @@ describe("SLA", function () {
           "failed to executed provided commit callback function" //"cannot commit the hash that already exists"
         );
     });
-
   })
 
-  describe("Coin Slashing", function () {
-    it("aggreguate 3 data points and detect bad Oracles (Score)", async function () {
-      const { user, sla, o1, o2, o3, token, owner } = await loadFixture(deployAggregatorContract);
+  describe("Token tx/mint and Coin Slashing", function () {
+    it("check the stake amount of token is reduced when Token accepts an order, the balance of SLA contract will increase", async function () {
+      const { user, sla, o1, o2, o3, token, owner, account1 } = await loadFixture(deployAggregatorContract);
+
+      // mint 8 token to user contract
+      await token.connect(account1).mint(user.address, ONE_NAIVE.mul(8))
+      // mint 7 token to user contract
+      await token.connect(account1).mint(o1.address, ONE_NAIVE.mul(7))
+      // mint 7 token to user contract
+      await token.connect(account1).mint(o2.address, ONE_NAIVE.mul(7))
+      
+      expect(await token.balanceOf(o1.address)).to.equal(ONE_NAIVE.mul(7));
+
+      expect(await token.balanceOf(sla.address)).to.equal(ONE_NAIVE.mul(0));
+      await expect(user.callOracle(2, ONE_NAIVE.mul(2)))
+        .to.emit(sla, "OrderBroadcasted");
+      expect(await token.balanceOf(sla.address)).to.equal(ONE_NAIVE.mul(2));
+      expect(await token.balanceOf(user.address)).to.equal(ONE_NAIVE.mul(6));
+
+      let OrderBroadcasted = await sla.queryFilter(sla.filters.OrderBroadcasted());
+      let orderArgs = OrderBroadcasted[0].args;
+      await o1.acceptOrder(orderArgs.requestId, orderArgs.callbackAddress, orderArgs.callbackFunctionId, orderArgs.payment)
+      await o2.acceptOrder(orderArgs.requestId, orderArgs.callbackAddress, orderArgs.callbackFunctionId, orderArgs.payment)
+      // 2 token from user was awarded to oracles, then get 4 token from stake
+      expect(await token.balanceOf(sla.address)).to.equal(ONE_NAIVE.mul(4)); 
+
+      expect(await token.balanceOf(o1.address)).to.equal(ONE_NAIVE.mul(6));
+      expect(await token.balanceOf(o2.address)).to.equal(ONE_NAIVE.mul(6));
+    });
+
+    it("check oracles unable to accept an order if they pay wrong amount", async function () {
+      const { user, sla, o1, o2, o3, token, owner, account1 } = await loadFixture(deployAggregatorContract);
       // order matching
-      await expect(user.callOracle(3, 0))
+
+      expect(await token.balanceOf(user.address)).to.equal(0);
+      expect(await token.balanceOf(account1.address)).to.equal(0);
+
+      // deposit 7000 token to account1
+      await token.connect(account1).deposit(ONE_NAIVE.mul(7), { value: ONE_NAIVE.mul(7), })
+
+      // mint 8 token to user contract
+      await token.connect(account1).mint(user.address, ONE_NAIVE.mul(8))
+      await token.connect(account1).mint(o1.address, ONE_NAIVE.mul(7))
+      await token.connect(account1).mint(o2.address, ONE_NAIVE.mul(6))
+      await token.connect(account1).mint(o3.address, ONE_NAIVE.mul(5))
+
+      expect(await token.balanceOf(account1.address)).to.equal(ONE_NAIVE.mul(7000));
+      expect(await token.balanceOf(user.address)).to.equal(ONE_NAIVE.mul(8));
+
+      await expect(user.callOracle(3, ONE_NAIVE.mul(2)))
         .to.emit(sla, "OrderBroadcasted");
 
       let OrderBroadcasted = await sla.queryFilter(sla.filters.OrderBroadcasted());
       let orderArgs = OrderBroadcasted[0].args;
-      await expect(o1.acceptOrder(orderArgs.requestId, orderArgs.callbackAddress, orderArgs.callbackFunctionId))
+      await expect(o1.acceptOrder(orderArgs.requestId, orderArgs.callbackAddress, orderArgs.callbackFunctionId, orderArgs.payment))
         .to.not.emit(sla, "OrderMatched")
         .to.not.emit(o1, "RequestRecieved");
-      await expect(o2.acceptOrder(orderArgs.requestId, orderArgs.callbackAddress, orderArgs.callbackFunctionId))
-        .to.not.emit(sla, "OrderMatched")
-        .to.not.emit(o2, "RequestRecieved");
-      await expect(o3.acceptOrder(orderArgs.requestId, orderArgs.callbackAddress, orderArgs.callbackFunctionId))
-        .to.emit(sla, "OrderMatched") // enough oracle accepted, trigger aggregation->getAnswer
-        .to.emit(o1, "RequestRecieved")
-        .to.emit(o2, "RequestRecieved")
-        .to.emit(o3, "RequestRecieved");
+      await expect(o2.acceptOrder(orderArgs.requestId, orderArgs.callbackAddress, orderArgs.callbackFunctionId, 2))
+        .to.be.revertedWith(
+          "stake amount does not match order"
+        );
+      await expect(o3.acceptOrder(orderArgs.requestId, orderArgs.callbackAddress, orderArgs.callbackFunctionId, orderArgs.payment))
+        .to.not.emit(sla, "OrderMatched") // enough oracle accepted, trigger aggregation->getAnswer
+    });
+
+    it("aggreguate 3 data points and detect bad Oracles (Score)", async function () {
+      const { user, sla, o1, o2, o3, account1, token, owner } = await loadFixture(deployAggregatorContract);
+      await token.connect(account1).mint(user.address, ONE_NAIVE.mul(20))
+      await token.connect(account1).mint(o1.address, ONE_NAIVE.mul(19))
+      await token.connect(account1).mint(o2.address, ONE_NAIVE.mul(19))
+      await token.connect(account1).mint(o3.address, ONE_NAIVE.mul(19))
+
+      // order matching
+      await user.callOracle(3, ONE_NAIVE.mul(12));
+
+      // Plan:
+      // o1, o2 didnt lie, o3 lied
+      // o1, o2, o3 all accept the order so stake 12 from each of them
+      // o1, o2, o3 all get 12/3 = 4 token award
+      // o1, o2 didnt lie so they get 12 token back: 19 - 12 + 4 + 12 = 23
+      // o3 lied so he get 0 token back: 19 - 12 + 4 = 11
+      // sla keeps that 12 token slashed from o3 yeey!
+      
+      let OrderBroadcasted = await sla.queryFilter(sla.filters.OrderBroadcasted());
+      let orderArgs = OrderBroadcasted[0].args;
+      await o1.acceptOrder(orderArgs.requestId, orderArgs.callbackAddress, orderArgs.callbackFunctionId, orderArgs.payment);
+      await o2.acceptOrder(orderArgs.requestId, orderArgs.callbackAddress, orderArgs.callbackFunctionId, orderArgs.payment);
+      await o3.acceptOrder(orderArgs.requestId, orderArgs.callbackAddress, orderArgs.callbackFunctionId, orderArgs.payment);
       
       const requestId = orderArgs.requestId;
 
@@ -211,15 +283,9 @@ describe("SLA", function () {
       let argsO1C = requestRecievedO1C[0].args;
       let argsO2C = requestRecievedO2C[0].args;
       let argsO3C = requestRecievedO3C[0].args;
-      await expect(o1.commitOracleRequest(argsO1C._requestId, argsO1C._callbackAddress, argsO1C._callbackFunctionId, hash1))
-        .to.emit(sla, "CommitReceived");
-      await expect(o2.commitOracleRequest(argsO2C._requestId, argsO2C._callbackAddress, argsO2C._callbackFunctionId, hash2))
-        .to.emit(sla, "CommitReceived");
-      await expect(o3.commitOracleRequest(argsO3C._requestId, argsO3C._callbackAddress, argsO3C._callbackFunctionId, hash3))
-        .to.emit(sla, "CommitReceived")
-        .to.emit(o1, "RequestReveal")
-        .to.emit(o2, "RequestReveal")
-        .to.emit(o3, "RequestReveal");
+      await o1.commitOracleRequest(argsO1C._requestId, argsO1C._callbackAddress, argsO1C._callbackFunctionId, hash1)
+      await o2.commitOracleRequest(argsO2C._requestId, argsO2C._callbackAddress, argsO2C._callbackFunctionId, hash2)
+      await o3.commitOracleRequest(argsO3C._requestId, argsO3C._callbackAddress, argsO3C._callbackFunctionId, hash3)
       // Oracle node recieves request and perpare reveal data
       let requestRecievedO1R = await o1.queryFilter(o1.filters.RequestReveal());
       let requestRecievedO2R = await o2.queryFilter(o2.filters.RequestReveal());
@@ -243,6 +309,14 @@ describe("SLA", function () {
       // check o3 in answers[requestId].slashOracles
       const slashOracles = await sla.getSlashOracles(requestId);
       expect(slashOracles[0]).to.equal(o3.address);
+
+      expect(await token.balanceOf(o1.address)).to.equal(ONE_NAIVE.mul(23)); // 19 - 12 + 4 + 12
+      expect(await token.balanceOf(o2.address)).to.equal(ONE_NAIVE.mul(23)); // 19 - 12 + 4 + 12
+      expect(await token.balanceOf(o3.address)).to.equal(ONE_NAIVE.mul(11)); // 19 - 12 + 4 slashed
+
+      expect(await token.balanceOf(sla.address)).to.equal(ONE_NAIVE.mul(12)); // slashed from o3
+
+      expect(await token.balanceOf(user.address)).to.equal(ONE_NAIVE.mul(8)); // 20 - 12 for order
     });
 
     // it("Spending should allocated evently(in range of +-gas) when Oracles behaves good", async function () {

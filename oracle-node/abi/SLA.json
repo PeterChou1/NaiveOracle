@@ -1,293 +1,404 @@
 [
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "_NaiveChainToken",
-          "type": "address"
-        }
-      ],
-      "stateMutability": "nonpayable",
-      "type": "constructor"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "int256",
-          "name": "Answer",
-          "type": "int256"
-        }
-      ],
-      "name": "Answered",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "bytes32",
-          "name": "requestId",
-          "type": "bytes32"
-        },
-        {
-          "indexed": false,
-          "internalType": "bytes32",
-          "name": "response",
-          "type": "bytes32"
-        }
-      ],
-      "name": "CommitReceived",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "bytes32",
-          "name": "requestId",
-          "type": "bytes32"
-        },
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "requester",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "payment",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "responseAmt",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "address",
-          "name": "callbackAddress",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "bytes4",
-          "name": "callbackFunctionId",
-          "type": "bytes4"
-        }
-      ],
-      "name": "OrderBroadcasted",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "bytes32",
-          "name": "requestId",
-          "type": "bytes32"
-        },
-        {
-          "indexed": false,
-          "internalType": "address[]",
-          "name": "oracles",
-          "type": "address[]"
-        }
-      ],
-      "name": "OrderMatched",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "bytes32",
-          "name": "requestId",
-          "type": "bytes32"
-        },
-        {
-          "indexed": false,
-          "internalType": "int256",
-          "name": "response",
-          "type": "int256"
-        }
-      ],
-      "name": "ResponseReceived",
-      "type": "event"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "name": "TrackedMetrics",
-      "outputs": [
-        {
-          "internalType": "int256",
-          "name": "assignedRequest",
-          "type": "int256"
-        },
-        {
-          "internalType": "int256",
-          "name": "completedRequest",
-          "type": "int256"
-        },
-        {
-          "internalType": "int256",
-          "name": "acceptedRequest",
-          "type": "int256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "averageResponseTime",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "_requestId",
-          "type": "bytes32"
-        }
-      ],
-      "name": "aggregator",
-      "outputs": [
-        {
-          "internalType": "int256",
-          "name": "",
-          "type": "int256"
-        }
-      ],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "_responseAmt",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "_paymentAmt",
-          "type": "uint256"
-        },
-        {
-          "internalType": "address",
-          "name": "_callbackAddress",
-          "type": "address"
-        },
-        {
-          "internalType": "bytes4",
-          "name": "_callbackFunctionSignature",
-          "type": "bytes4"
-        }
-      ],
-      "name": "broadcastOrder",
-      "outputs": [
-        {
-          "internalType": "bytes32",
-          "name": "requestId",
-          "type": "bytes32"
-        }
-      ],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "_requestId",
-          "type": "bytes32"
-        },
-        {
-          "internalType": "bytes32",
-          "name": "_commitHash",
-          "type": "bytes32"
-        }
-      ],
-      "name": "commitCallback",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "_requestId",
-          "type": "bytes32"
-        }
-      ],
-      "name": "getAnswer",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "_requestId",
-          "type": "bytes32"
-        }
-      ],
-      "name": "matchCallback",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "_requestId",
-          "type": "bytes32"
-        }
-      ],
-      "name": "requestReveal",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "_requestId",
-          "type": "bytes32"
-        },
-        {
-          "internalType": "int256",
-          "name": "_response",
-          "type": "int256"
-        },
-        {
-          "internalType": "bytes32",
-          "name": "_salt",
-          "type": "bytes32"
-        }
-      ],
-      "name": "revealCallback",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    }
-  ]
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_NaiveChainToken",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "int256",
+        "name": "Answer",
+        "type": "int256"
+      }
+    ],
+    "name": "Answered",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "requestId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "response",
+        "type": "bytes32"
+      }
+    ],
+    "name": "CommitReceived",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "requestId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "requester",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "payment",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "responseAmt",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "stakeAmt",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "callbackAddress",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes4",
+        "name": "callbackFunctionId",
+        "type": "bytes4"
+      }
+    ],
+    "name": "OrderBroadcasted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "requestId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "address[]",
+        "name": "oracles",
+        "type": "address[]"
+      }
+    ],
+    "name": "OrderMatched",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "requestId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "int256",
+        "name": "response",
+        "type": "int256"
+      }
+    ],
+    "name": "ResponseReceived",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "TrackedMetrics",
+    "outputs": [
+      {
+        "internalType": "int256",
+        "name": "assignedRequest",
+        "type": "int256"
+      },
+      {
+        "internalType": "int256",
+        "name": "completedRequest",
+        "type": "int256"
+      },
+      {
+        "internalType": "int256",
+        "name": "acceptedRequest",
+        "type": "int256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "averageResponseTime",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "_requestId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "aggregator",
+    "outputs": [
+      {
+        "internalType": "int256",
+        "name": "",
+        "type": "int256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "name": "answers",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "requestId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "paymentAmt",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "responseAmt",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "callbackAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes4",
+        "name": "callbackFunctionId",
+        "type": "bytes4"
+      },
+      {
+        "internalType": "uint256",
+        "name": "commitAmt",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "revealAmt",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_responseAmt",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_paymentAmt",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "_callbackAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes4",
+        "name": "_callbackFunctionSignature",
+        "type": "bytes4"
+      }
+    ],
+    "name": "broadcastOrder",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "requestId",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "_requestId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "_commitHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "commitCallback",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "_requestId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getAnswer",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "_requestId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getSlashOracles",
+    "outputs": [
+      {
+        "internalType": "address[]",
+        "name": "",
+        "type": "address[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "_requestId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getStakeAmt",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_oracleAdd",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "_requestId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "matchCallback",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "_requestId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "requestReveal",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "_requestId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "int256",
+        "name": "_response",
+        "type": "int256"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "_salt",
+        "type": "bytes32"
+      }
+    ],
+    "name": "revealCallback",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "tokenAddress",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

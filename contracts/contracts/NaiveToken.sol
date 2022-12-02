@@ -5,6 +5,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import "./interfaces/INaiveToken.sol";
 import "./interfaces/IERC677Receiver.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "./interfaces/IServerLevelAggrement.sol";
 
 
 contract NaiveToken is INaiveToken, ERC20 {
@@ -28,11 +29,43 @@ contract NaiveToken is INaiveToken, ERC20 {
     }
     return true;
   }
+      
+  function transferAndAcceptOrder(address _to, uint _value, bytes32 _requestId)
+    public
+    returns (bool success)
+  {
+    IServerLevelAggrement sla = IServerLevelAggrement(_to);
+    uint256 stakeAmt = sla.getStakeAmt(_requestId);
+    require(stakeAmt == _value , "stake amount does not match order");
+
+    super.transfer(_to, _value);
+
+    emit Transfer(msg.sender, _to, _value, abi.encodeWithSignature("", _value));
+    sla.matchCallback(msg.sender, _requestId);
+  
+    return true;
+  }
+
+  function transferStakeToOracle(address _to, uint256 _value)
+    public
+    returns (bool success)
+  {
+    super.transfer(_to, _value);
+
+    emit Transfer(msg.sender, _to, _value, abi.encodeWithSignature("", _value));
+    return true;
+  }
 
   function deposit(uint depositAmt) payable external {
     require(msg.value == depositAmt, "invalid amount deposited");
     // 1 wei == 1000 NaiveToken 
     _mint(msg.sender, msg.value * 1000);
+  } 
+
+  // for testing
+  function mint(address receiver, uint mintAmt) external {
+    _mint(receiver, mintAmt);
+    emit Transfer(address(0), receiver, mintAmt, abi.encodeWithSignature("", mintAmt));
   } 
 
 

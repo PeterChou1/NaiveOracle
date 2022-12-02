@@ -32,7 +32,7 @@ const main = async () => {
         const salt = ethers.utils.randomBytes(32); // generate random salt
         const hash = ethers.utils.solidityKeccak256(["uint256", "bytes32"], [ethUSD, salt]); 
         // accept the order from the oracle
-        await Oracle.acceptOrder(requestId, address, funcCallback, {gasLimit: 8000000});
+        await Oracle.acceptOrder(requestId, address, funcCallback, paymentAmt, { gasLimit: 8000000 });
         console.log("Order accepted");
         SLA.once(SLA.filters.OrderMatched(), () => {
             console.log("Order matched");

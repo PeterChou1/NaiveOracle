@@ -11,13 +11,17 @@ interface IServerLevelAggrement {
     bytes4 _callbackFunctionSignature
   ) external returns (bytes32 requestId);
   
-  function matchCallback(bytes32 _requestId) external;
+  function matchCallback(address _oracleAdd, bytes32 _requestId) external;
+
+  function getStakeAmt(bytes32 _requestId) external view returns (uint256);
+  function getTokenAddress() external view returns (address);
 
   event OrderBroadcasted(
         bytes32 requestId,
         address indexed requester,
-        uint256 payment, 
+        uint256 payment,
         uint256 responseAmt,
+        uint256 stakeAmt,
         address callbackAddress,
         bytes4 callbackFunctionId
   );
