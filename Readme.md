@@ -58,3 +58,17 @@ When SLA communicates with an Oracle
 
 - verifiable random number
 - chainlnk v2?
+
+
+
+## Contribution
+
+1. In contract folder, run `npx hardhat run scripts/deploy.ts --network goerli`
+2. Copy TOKEN_ADDR, ORACLE_X, ORACLE_Y, ORACLE_Z, SLA, USER_CONTRACT add them to `oracle-node/.env`
+3. Extract `oracle-node/abi/Oracle.json` and `oracle-node/abi/SLA.json` from
+   - `contracts/artifacts/contracts/Oracle.sol/Oracle.json`
+   - `contracts/artifacts/contracts/SLA.sol/SLA.json`
+   - By only copy the abi list
+4. In oracle-node folder, run `npm run start` to execute oracle contract `oracle-node/src/index.ts`
+   - you could run up to 3 nodes by switching the `process.env.ORACLE_{X,Y,Z}`
+5. In oracle-node folder, run `npm run test` to execute user contract  `oracle-node/test/test.ts`
