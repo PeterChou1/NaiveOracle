@@ -29,7 +29,11 @@ contract SLA is IServerLevelAggrement {
         mapping(address => bool) commitAddress;
         mapping(address => bool) revealAddress;
         int256[] responses;
-        
+
+        // only to be used for tracking the response sender---
+        mapping(int256 => address[]) responseSenders;
+        address[] slashOracles;
+
         // reputation
         mapping(address => uint) startedAt;
         mapping(address => uint) endedAt;
@@ -212,6 +216,14 @@ contract SLA is IServerLevelAggrement {
         require(currentCR.commit == keccak256(abi.encodePacked(_response, _salt)), "invalid reveal");
         currentCR.reveal = _response;
         currentAns.responses.push(_response);
+
+        // currentAns.responseSender[_requestId].push(msg.sender);
+        // if(currentAns.responseSender[_requestId].length == 0){
+        //     currentAns.responseSender[_requestId].push(msg.sender);
+        // } else {
+        //     currentAns.responseSender[_requestId].push(msg.sender);
+        // }
+
         emit ResponseReceived(_requestId, _response);
         currentAns.revealAmt++;
         currentAns.revealAddress[msg.sender] = true;
@@ -242,6 +254,33 @@ contract SLA is IServerLevelAggrement {
         // should follow the implementation of ./utils/utils.ts
         // 1. update the reputation metrics
         // 2. slashing Naive coin for bad behaviour
+        // int256 minimum = 24.59;
+        // int256 maximum = 65.29;
+        // int256 buffer = (maximum - minimum) / 2;
+        // // sort the values in currentAns.responses
+        // for (uint i=0; i < currentAns.responses.length; i++) {
+        //     for (uint j=i+1; j < currentAns.responses.length; j++) {
+        //         if (currentAns.responses[i] > currentAns.responses[j]) {
+        //             int256 temp = currentAns.responses[i];
+        //             currentAns.responses[i] = currentAns.responses[j];
+        //             currentAns.responses[j] = temp;
+        //         }
+        //     }
+        // }
+        // int256 median = currentAns.responses[currentAns.responses.length / 2];
+
+        // for (uint i=0; i < currentAns.responses.length; i++) {
+        //     int256 value = currentAns.responses[i];
+        //     if (value > median + buffer || value < median - buffer) {
+        //         // concat slashOracles to currentAns.responseSender[value]
+        //         for (uint i=0; i < currentAns.responseSender[value].length; i++) {
+        //             slashOracles.push(currentAns.responseSender[value][i]);
+        //         }
+        //     }
+        // }
+        
+
+
         return currentAns.responses[0];
     }
 

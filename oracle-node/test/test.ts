@@ -14,7 +14,7 @@ const main = async () => {
     console.log("connected to user contract on " + process.env.USER_CONTRACT);
     const balance = await wallet.getBalance();
     console.log("connect to wallet with balance " + balance);
-    const reponseAmt = ethers.BigNumber.from(1);
+    const reponseAmt = ethers.BigNumber.from(3);
     const paymentAmt = ethers.BigNumber.from(0);
     const res = await UserContract.callOracle(reponseAmt, paymentAmt, {gasLimit: 5000000});
     console.log(res);

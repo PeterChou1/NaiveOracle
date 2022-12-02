@@ -12,7 +12,7 @@ const main = async () => {
     const wallet = new ethers.Wallet(process.env.SK as string, provider);
     var SLA = new ethers.Contract(process.env.SLA as string, JSON.stringify(abiSLA), provider);
     SLA = await SLA.connect(wallet);
-    var Oracle = new ethers.Contract(process.env.ORACLE as string, JSON.stringify(abiOracle), provider);
+    var Oracle = new ethers.Contract(process.env.ORACLE_Z as string, JSON.stringify(abiOracle), provider);
     Oracle = await Oracle.connect(wallet);
 
 
