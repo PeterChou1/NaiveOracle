@@ -20,6 +20,7 @@ describe("SLA", function () {
 
     const ServerLevelAggrement = await ethers.getContractFactory("SLA");
     const sla = await ServerLevelAggrement.deploy(token.address);
+    await sla.deployed();
 
     const UserContract = await ethers.getContractFactory("UserContract");
     const user = await UserContract.deploy(sla.address);
@@ -27,9 +28,9 @@ describe("SLA", function () {
     return { sla, o1, o2, o3, user, token, owner, account1, otherAccount };
   }
   // run the fixture before each test
-  const data1 = 10;
-  const data2 = 19;
-  const data3 = 30;
+  const data1 = 1200;
+  const data2 = 1000;
+  const data3 = 99999;
   const salt1 = ethers.utils.randomBytes(32); // generate random salt
   const hash1 = ethers.utils.solidityKeccak256(["uint256", "bytes32"], [data1, salt1]); // generate random hash from salt and data
   const salt2 = ethers.utils.randomBytes(32); // generate random salt
@@ -83,7 +84,7 @@ describe("SLA", function () {
         .to.emit(sla, "Answered");
 
       // User contract check the response
-      const responseAns = ethers.BigNumber.from("19");
+      const responseAns = ethers.BigNumber.from("1200");
       expect(await user.getResponse()).to.equal(responseAns);
     });
 
@@ -231,17 +232,17 @@ describe("SLA", function () {
         .to.emit(sla, "ResponseReceived");
       await expect(o2.revealOracleRequest(argsO2R._requestId, argsO2R._callbackAddress, argsO2R._callbackFunctionId, data2, salt2))
         .to.emit(sla, "ResponseReceived");
-      await expect(o2.revealOracleRequest(argsO3R._requestId, argsO3R._callbackAddress, argsO3R._callbackFunctionId, data3, salt3))
+      await expect(o3.revealOracleRequest(argsO3R._requestId, argsO3R._callbackAddress, argsO3R._callbackFunctionId, data3, salt3))
         .to.emit(sla, "ResponseReceived")
         .to.emit(sla, "Answered");
 
       // User contract check the response
-      const responseAns = ethers.BigNumber.from("19");
+      const responseAns = ethers.BigNumber.from("1200");
       expect(await user.getResponse()).to.equal(responseAns);
 
       // check o3 in answers[requestId].slashOracles
-      const answer = await sla.answers(requestId);
-      expect(answer.slashOracles).to.equal([o3.address]);
+      const slashOracles = await sla.getSlashOracles(requestId);
+      expect(slashOracles[0]).to.equal(o3.address);
     });
 
     // it("Spending should allocated evently(in range of +-gas) when Oracles behaves good", async function () {

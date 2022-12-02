@@ -62,7 +62,7 @@ contract SLA is IServerLevelAggrement {
     INaiveToken private token;
     uint256 orderNumber;
 
-    mapping(bytes32 => Answer) private answers;
+    mapping(bytes32 => Answer) public answers; // private -> public for testing
     mapping(bytes32 => mapping(address => CommitReveal)) commitReveal;
 
     constructor(address _NaiveChainToken) {
@@ -217,7 +217,7 @@ contract SLA is IServerLevelAggrement {
         currentCR.reveal = _response;
         currentAns.responses.push(_response);
 
-        // currentAns.responseSender[_requestId].push(msg.sender);
+        currentAns.responseSenders[_response].push(msg.sender);
         // if(currentAns.responseSender[_requestId].length == 0){
         //     currentAns.responseSender[_requestId].push(msg.sender);
         // } else {
@@ -254,34 +254,44 @@ contract SLA is IServerLevelAggrement {
         // should follow the implementation of ./utils/utils.ts
         // 1. update the reputation metrics
         // 2. slashing Naive coin for bad behaviour
-        // int256 minimum = 24.59;
-        // int256 maximum = 65.29;
-        // int256 buffer = (maximum - minimum) / 2;
-        // // sort the values in currentAns.responses
-        // for (uint i=0; i < currentAns.responses.length; i++) {
-        //     for (uint j=i+1; j < currentAns.responses.length; j++) {
-        //         if (currentAns.responses[i] > currentAns.responses[j]) {
-        //             int256 temp = currentAns.responses[i];
-        //             currentAns.responses[i] = currentAns.responses[j];
-        //             currentAns.responses[j] = temp;
-        //         }
-        //     }
-        // }
-        // int256 median = currentAns.responses[currentAns.responses.length / 2];
+        int256 minimum = 0;
+        int256 maximum = 80000;
+        int256 buffer = (maximum - minimum) / 2;
 
         // for (uint i=0; i < currentAns.responses.length; i++) {
-        //     int256 value = currentAns.responses[i];
-        //     if (value > median + buffer || value < median - buffer) {
-        //         // concat slashOracles to currentAns.responseSender[value]
-        //         for (uint i=0; i < currentAns.responseSender[value].length; i++) {
-        //             slashOracles.push(currentAns.responseSender[value][i]);
-        //         }
-        //     }
+        //     console.logInt(currentAns.responses[i]);
         // }
+        // sort the values in currentAns.responses
+        for (uint i=0; i < currentAns.responses.length; i++) {
+            for (uint j=i+1; j < currentAns.responses.length; j++) {
+                if (currentAns.responses[i] > currentAns.responses[j]) {
+                    int256 temp = currentAns.responses[i];
+                    currentAns.responses[i] = currentAns.responses[j];
+                    currentAns.responses[j] = temp;
+                }
+            }
+        }
+        // // print the currentAns.responses
+        // console.log("after sort");
+        // for (uint i=0; i < currentAns.responses.length; i++) {
+        //     console.logInt(currentAns.responses[i]);
+        // }
+
+        int256 median = currentAns.responses[currentAns.responses.length / 2];
+
+        for (uint i=0; i < currentAns.responses.length; i++) {
+            int256 value = currentAns.responses[i];
+            if (value > median + buffer || value < median - buffer) {
+                // concat slashOracles to currentAns.responseSender[value]
+                for (uint j=0; j < currentAns.responseSenders[value].length; j++) {
+                    currentAns.slashOracles.push(currentAns.responseSenders[value][j]);
+                }
+            }
+        }
         
 
 
-        return currentAns.responses[0];
+        return median;
     }
 
     modifier ensureMatchedOracleSender(bytes32 _requestId, address _oracle){
@@ -297,5 +307,17 @@ contract SLA is IServerLevelAggrement {
         if (findOracle) {
             _;
         }
+    }
+
+    // Reference types that are part of structure are not bing returned with the structure data
+    // Hence this function is created for testing purpose
+    function getSlashOracles(bytes32 _requestId) external view returns (address[] memory) {
+        // address[] slashOracles = answers[_requestId].slashOracles;
+        // console.log(slashOracles);
+        // console.log("slashedssdd");
+        return answers[_requestId].slashOracles;
+        // for (uint i=0; i < slashOracles.length; i++) {
+        //     console.log(slashOracles[i]);
+        // }
     }
 }
