@@ -25,6 +25,16 @@ to be implemented
 
 to be implemented
 
+## Oracle-Node
+
+##### On-Chain
+
+- good
+
+##### Off-Chain
+
+- also good
+
 ## Service Level Agreement (SLA)
 
 When UserContract sends a request to SLA
@@ -76,3 +86,11 @@ When SLA communicates with an Oracle
 
 - verifiable random number
 - chainlnk v2?
+
+
+
+## Team Oracle Members:
+
+- Soso Song (Zhifei Song)
+- Nikhil Lakhwani
+- Peter Chou
