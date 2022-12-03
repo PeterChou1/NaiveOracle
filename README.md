@@ -1,8 +1,14 @@
 # Naive Oracle
 
-Naive oracle is a student project which seeks to understand how oracles work. It does so by reimplementing the chainlink oracle v1 following the methodology of the orginal white paper
+Naive oracle is a student project which seeks to understand how oracles work. It does so by reimplementing the chainlink oracle v1 following the methodology of the [orginal white paper](./media/ChainlinkWPv1.pdf)
 
 # Architecture
+
+Architecture is....
+
+<img src="./media/architecture.png" alt="Relation between User/SLA/Oracle Contracts" style="zoom:28%;" />
+
+
 
 ## On-chain Contracts
 
@@ -19,7 +25,7 @@ to be implemented
 
 to be implemented
 
-## Server Level Agreement (SLA)
+## Service Level Agreement (SLA)
 
 When UserContract sends a request to SLA
 
@@ -39,6 +45,18 @@ When SLA communicates with an Oracle
 - as long as they compatible with our SLAgreement 
 
 > Note: this possibly makes the difference from Chainlink
+
+## Setup/Contribution
+
+1. In contract folder, run `npx hardhat run scripts/deploy.ts --network goerli`
+2. Copy `TOKEN_ADDR`, `ORACLE_X`, `ORACLE_Y`, `ORACLE_Z`, `SLA`, `USER_CONTRACT` from terminal and add them to `oracle-node/.env`
+3. Extract `oracle-node/abi/Oracle.json` and `oracle-node/abi/SLA.json` from
+   - `contracts/artifacts/contracts/Oracle.sol/Oracle.json`
+   - `contracts/artifacts/contracts/SLA.sol/SLA.json`
+   - By only copy the abi list
+4. In oracle-node folder, run `npm run start` to execute oracle contract `oracle-node/src/index.ts`
+   - you could run up to 3 nodes by switching the `process.env.ORACLE_{X,Y,Z}`
+5. In oracle-node folder, run `npm run test` to execute user contract  `oracle-node/test/test.ts`
 
 
 ## Next Steps
