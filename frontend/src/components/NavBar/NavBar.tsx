@@ -61,7 +61,8 @@ export const NavBar = () => {
           <Flex h={16} alignItems={"center"} justifyContent={"space-between"}>
             <Box fontSize="xl">
               {" "}
-              <b>NaiveOracle</b>{" "}
+              <b>NaiveOracle Tokens: </b>
+              {" "}
             </Box>
             <Flex alignItems={"center"}>
               <Stack direction={"row"} spacing={7}>
