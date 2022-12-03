@@ -2,12 +2,6 @@
 
 Naive oracle is a student project which seeks to understand how oracles work. It does so by reimplementing the chainlink oracle v1 following the methodology of the [orginal white paper](./media/ChainlinkWPv1.pdf)
 
-# Architecture
-
-Architecture is....
-
-<img src="./media/architecture.png" alt="Relation between User/SLA/Oracle Contracts" style="zoom:28%;" />
-
 
 
 ## On-chain Contracts
@@ -16,7 +10,7 @@ Currently the architecture is an extremely simplified version of chainlink. The 
 hooks into the Oracle Network by using the IServerLevelAggrement interface which contains the broadcastOrder method which
 broadcast an order the oracle network for a request to completed
 
-### Service Level Agreement (SLA)
+#### Service Level Agreement (SLA)
 
 When UserContract sends a request to SLA
 
@@ -37,17 +31,22 @@ When SLA communicates with an Oracle
 
 > Note: this possibly makes the difference from Chainlink
 
-### Naive Tokens
+#### Naive Tokens
 
 NaiveTokens are intended to be the ERC20 tokens of our proof of concept network. User contracts will pay the tokens in exchange for access to the oracle network. Similarly oracle orperators would be require to stake coins in exchange for operating as an oracle node to incentivize good behaviour.
 
-### Oracle
+#### Oracle
 
 The Oracle represent the on chain component for oracle operators it is responsible for forwarding the answers to the SLA contract as will as being a contract which recieves and stakes NaiveTokens.
 
-### User Contract
+#### User Contract
 
 The user contract is an example contract on how user contracts in our network could be used.
+
+#### What is happening
+
+<img src="./media/architecture.png" alt="Relation between User/SLA/Oracle Contracts" style="zoom:28%;" />
+
 
 
 ## Frontend
@@ -55,11 +54,15 @@ The user contract is an example contract on how user contracts in our network co
 To demonstrate the usecase we have a simple front end which calls a predefined user contract on chain which will call our oracle network for the price of eth/usd.
 Due to time constraints this part of the frontend is extremely simplified and some basic functionality such as Tokens and Reputation is not implemented. 
 
+
+
 ## Oracle-Node
 
 The oracle node clients is responsible for listening to on chain contract for orders broadcasted by the user contract. Once it hears a order broadcasted event
 it will accept the order from the SLA retrieve the data needed and commit as part of a commit reveal scheme to the SLA contract. Once the SLA recieves every single
 commit it will move on to the reveal phase where the retrieved value is revealed to SLA contract.  
+
+
 
 ## Setup/Contribution
 
@@ -74,23 +77,11 @@ commit it will move on to the reveal phase where the retrieved value is revealed
 5. In oracle-node folder, run `npm run test` to execute user contract  `oracle-node/test/test.ts`
 
 
-## Next Steps
-
-- basic offchain client
-- data signing (optional)
-- Service level agreements
-  - oracle bidding -> order matching
-  - real aggregations
-    - performace -> Slashing Naive coins for bad behaviour
-    - aggergation (mode)
-
-- Frontend
-- Video
 
 ## Possible Topics to Explore (if we have infinite time)
 
 - verifiable random number
-- chainlnk v2?
+- chainlnk v2
 
 
 
