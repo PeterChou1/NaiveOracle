@@ -12,6 +12,8 @@ import { useWallet } from "../../contexts/WalletContext";
 
 declare let window: any;
 
+
+
 export const NavBar = () => {
   const { wallet, setWallet } = useWallet();
 
@@ -29,25 +31,47 @@ export const NavBar = () => {
     });
     provider.getNetwork().then((result) => {
       setWallet({ ...wallet, chainId: result.chainId, chainName: result.name });
+      console.log("connected to network");
+      console.log(result.name);
     });
   }, [wallet.currentAccount]);
 
-  const onClickConnect = () => {
+  const onClickConnect = async () => {
     //client side code
     if (!window.ethereum) {
       console.log("Please Install MetaMask");
       return;
     }
     const provider = new ethers.providers.Web3Provider(window.ethereum);
-
     // MetaMask requires requesting permission to connect users accounts
-    provider
-      .send("eth_requestAccounts", [])
-      .then((accounts) => {
-        if (accounts.length > 0)
-          setWallet({ ...wallet, currentAccount: accounts[0] });
-      })
-      .catch((e) => console.log(e));
+    const accounts = await provider.send("eth_requestAccounts", []);
+    const signer = provider.getSigner();
+    const naiveTokenContract = wallet.naiveTokenContract.connect(signer);
+    const oracleContract_X = wallet.oracleContract_X.connect(signer);
+    const oracleContract_Y = wallet.oracleContract_Y.connect(signer);
+    const oracleContract_Z = wallet.oracleContract_Z.connect(signer);
+    const userContract = wallet.userContract.connect(signer);
+    const naiveTokens = ethers.utils.formatEther(await naiveTokenContract.balanceOf(accounts[0]));
+    const oracleContract_X_tokens = ethers.utils.formatEther(await naiveTokenContract.balanceOf(oracleContract_X.address));
+    const oracleContract_Y_tokens = ethers.utils.formatEther(await naiveTokenContract.balanceOf(oracleContract_Y.address));
+    const oracleContract_Z_tokens = ethers.utils.formatEther(await naiveTokenContract.balanceOf(oracleContract_Z.address));
+    const userContract_token = ethers.utils.formatEther(await naiveTokenContract.balanceOf(userContract.address));
+    if (accounts.length > 0) {
+      setWallet({ 
+        ...wallet, 
+        currentAccount: accounts[0],
+        naiveTokenContract,
+        oracleContract_X, 
+        oracleContract_Y,
+        oracleContract_Z,
+        userContract,
+        naiveTokens,
+        oracleContract_X_tokens,
+        oracleContract_Y_tokens,
+        oracleContract_Z_tokens,
+        userContract_token
+      });
+    }
   };
 
   const onClickDisconnect = () => {
@@ -61,7 +85,7 @@ export const NavBar = () => {
           <Flex h={16} alignItems={"center"} justifyContent={"space-between"}>
             <Box fontSize="xl">
               {" "}
-              <b>NaiveOracle Tokens: </b>
+              <b>NaiveOracle Tokens: {wallet.naiveTokens}</b>
               {" "}
             </Box>
             <Flex alignItems={"center"}>
@@ -74,7 +98,7 @@ export const NavBar = () => {
                     rounded="3xl"
                     width="9xs"
                   >
-                    Connected [{wallet.currentAccount}]
+                    Connected
                   </Button>
                 ) : (
                   <Button

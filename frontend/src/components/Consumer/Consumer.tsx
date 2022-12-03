@@ -9,17 +9,28 @@ import {
   Button,
   FormLabel,
 } from "@chakra-ui/react";
+import { useWallet } from "../../contexts/WalletContext";
+import { ethers } from "ethers";
 
 export const Consumer = () => {
+  const { wallet, setWallet } = useWallet();
   const [results, setResults] = useState<string>("Insert Results Here.");
   const [oracleNumber, setOracleNumber] = useState<string>("");
   const [oracleQuality, setOracleQuality] = useState<string>("");
   const [tokenAmount, setTokenAmount] = useState<string>("");
 
   async function onSubmit(event: React.FormEvent) {
-    setResults("Results have been set.");
     event.preventDefault();
     console.log("oracleNumber: " + oracleNumber, "oracleQuality: " + oracleQuality, "tokenAmount: " + tokenAmount);
+    await wallet.userContract.callOracle(ethers.BigNumber.from(oracleNumber), ethers.BigNumber.from(0));
+    setResults("fetching result click get results for more");
+  }
+
+  async function getResponse(event: React.FormEvent) {
+    event.preventDefault();
+    const response = await wallet.userContract.getResponse();
+    console.log(response);
+    setResults(ethers.utils.formatEther(response));
   }
 
   return (
@@ -59,6 +70,9 @@ export const Consumer = () => {
               <VStack textAlign="left" bg="white" padding={5} rounded="3xl">
                 <FormLabel>Results:</FormLabel>
                 <Text fontSize="xs">{results}</Text>
+                <Button colorScheme="green" onClick={getResponse}>
+                    Get Response
+                  </Button>
               </VStack>
             </Container>
           </Container>

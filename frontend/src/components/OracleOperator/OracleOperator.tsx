@@ -8,9 +8,28 @@ import {
   FormLabel,
 } from "@chakra-ui/react";
 import { OracleCard } from "./OracleCard/OracleCard";
-import { MyOracleCard } from "./MyOracleCard/MyOracleCard";
+import { useWallet } from "../../contexts/WalletContext";
 
 export const OracleOperator = () => {
+  const { wallet, setWallet } = useWallet();
+  const OracleNodes = [
+    {
+      address: wallet.oracleContract_X.address,
+      balance: wallet.oracleContract_X_tokens,
+    },
+    {
+      address: wallet.oracleContract_Y.address,
+      balance: wallet.oracleContract_Y_tokens,
+    },
+    {
+      address: wallet.oracleContract_Z.address,
+      balance: wallet.oracleContract_Z_tokens,
+    },
+    {
+      address: wallet.userContract.address,
+      balance: wallet.userContract_token,
+    }
+  ];
   return (
     <Box fontSize="xl">
       <Grid minH="100vh" p={3} bg="green.50">
@@ -36,22 +55,6 @@ export const OracleOperator = () => {
                     );
                   })}
                 </VStack>
-                <FormLabel paddingTop={10}>
-                  <b>My Oracle Nodes:</b>
-                </FormLabel>
-                <VStack textAlign="left" bg="white" padding={5} rounded="3xl">
-                  {MyOracleNodes.map((oracle, index) => {
-                    return (
-                      <MyOracleCard
-                        key={oracle.publicKey}
-                        publicKey={oracle.publicKey}
-                        privateKey={oracle.privateKey}
-                        balance={oracle.balance}
-                        index={index}
-                      ></MyOracleCard>
-                    );
-                  })}
-                </VStack>
               </VStack>
             </Container>
           </Container>
@@ -63,26 +66,4 @@ export const OracleOperator = () => {
 
 export default OracleOperator;
 
-const OracleNodes = [
-  {
-    address: "0x7ed5f8cb3cd63a6a52493c5764b6cce5b8fe466f",
-    balance: "120.412",
-  },
-  {
-    address: "0xe39ea8dcec33ea56f0c0c69949170a149906ec18",
-    balance: "49.321",
-  },
-  {
-    address: "0x0cc44c69e2F3f5A21C2f60119dCE9f594c1a17FE",
-    balance: "201.324",
-  },
-];
 
-const MyOracleNodes = [
-  {
-    publicKey: "0xe39ea8dcec33ea56f0c0c69949170a149906ec23",
-    privateKey:
-      "1daa123a5a13c75a5238ce676ef06368fca57dcc33f3e33ea3c63d77f123a5c",
-    balance: "305.212",
-  },
-];

@@ -9,21 +9,27 @@ import {
   Button,
   FormLabel,
 } from "@chakra-ui/react";
+import { useWallet } from "../../contexts/WalletContext";
+import { ethers } from "ethers";
 
 export const NaiveTokens = () => {
-  const [results, setResults] = useState<string>("Insert Results Here.");
-  const [oracleNumber, setOracleNumber] = useState<string>("");
-  const [oracleQuality, setOracleQuality] = useState<string>("");
-  const [tokenAmount, setTokenAmount] = useState<string>("");
+  const [depositNumber, setDepositNumber] = useState<number>(0);
+  const [transferNumber, setTransferNumber] = useState<number>(0);
+  const [transferAddress, setTransferAddress] = useState<string>("");
+  const { wallet, setWallet } = useWallet();
 
-  async function onSubmit(event: React.FormEvent) {
-    setResults("Results have been set.");
+  async function onDeposit(event: React.FormEvent) {
     event.preventDefault();
-    console.log("oracleNumber: " + oracleNumber, "oracleQuality: " + oracleQuality, "tokenAmount: " + tokenAmount);
+    const depositWei = ethers.BigNumber.from(depositNumber);
+    await wallet.naiveTokenContract.deposit(depositWei, { value: depositWei });
+    console.log("deposit number: " + depositNumber);
   }
 
   async function onTransfer(event: React.FormEvent) {
-
+    event.preventDefault();
+    const transferAmount = ethers.BigNumber.from(transferNumber);
+    await wallet.naiveTokenContract.transfer(transferAddress,  transferAmount);
+    console.log("transfer amount: " + transferAmount + " to " + transferAddress);
   }
 
   return (
@@ -35,13 +41,13 @@ export const NaiveTokens = () => {
               <b>Token Management</b>
             </Text>
             <Container bg="green.100" padding="6" rounded="3xl">
-              <form onSubmit={onSubmit}>
+              <form onSubmit={onDeposit}>
                 <VStack textAlign="left" alignItems="left" padding={3}>
                   <FormLabel>Deposit</FormLabel>
                   <Input
                     bg="white"
                     isRequired
-                    onChange={(e) => setOracleNumber(e.target.value)}
+                    onChange={(e) => setDepositNumber(parseInt(e.target.value))}
                   ></Input>
                   <FormLabel>Deposit Amount:</FormLabel>
                   <Button colorScheme="green" type="submit">
@@ -51,13 +57,18 @@ export const NaiveTokens = () => {
               </form>
               <form onSubmit={onTransfer}>
                 <VStack textAlign="left" alignItems="left" padding={3}>
-                  <FormLabel>Transfer</FormLabel>
+                  <FormLabel>Transfer Amount</FormLabel>
                   <Input
                     bg="white"
                     isRequired
-                    onChange={(e) => setOracleNumber(e.target.value)}
+                    onChange={(e) => setTransferNumber(parseInt(e.target.value))}
                   ></Input>
                   <FormLabel>Transfer Address:</FormLabel>
+                  <Input
+                    bg="white"
+                    isRequired
+                    onChange={(e) => setTransferAddress(e.target.value)}
+                  ></Input>
                   <Button colorScheme="green" type="submit">
                     Confirm Transfer
                   </Button>

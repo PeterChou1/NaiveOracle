@@ -7,12 +7,16 @@ import abiOracle from "../abi/Oracle.json";
 //popular api to retrieve eth usd price
 const ethusdURL = "https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=USD";
 
+console.log("Oracle-node listening to " + process.env.SLA);
+
 const main = async () => {
     const provider = new ethers.providers.AlchemyProvider("goerli", process.env.ALCHEMY);
     const wallet = new ethers.Wallet(process.env.SK as string, provider);
     var SLA = new ethers.Contract(process.env.SLA as string, JSON.stringify(abiSLA), provider);
     SLA = await SLA.connect(wallet);
-    var Oracle = new ethers.Contract(process.env.ORACLE_Z as string, JSON.stringify(abiOracle), provider);
+    const oracleAdr = process.env.ORACLE_X;
+    var Oracle = new ethers.Contract(oracleAdr as string, JSON.stringify(abiOracle), provider);
+    console.log("listening for oracle address: " + oracleAdr);
     Oracle = await Oracle.connect(wallet);
 
 
@@ -32,7 +36,7 @@ const main = async () => {
         const salt = ethers.utils.randomBytes(32); // generate random salt
         const hash = ethers.utils.solidityKeccak256(["uint256", "bytes32"], [ethUSD, salt]); 
         // accept the order from the oracle
-        await Oracle.acceptOrder(requestId, address, funcCallback, {gasLimit: 8000000});
+        await Oracle.acceptOrder(requestId, address, funcCallback, {gasLimit: 10000000});
         console.log("Order accepted");
         SLA.once(SLA.filters.OrderMatched(), () => {
             console.log("Order matched");
@@ -46,7 +50,7 @@ const main = async () => {
             console.log("Callback address: " + callbackAddress);
             console.log("Callback function: " + callbackfunc);
             // send the commit to the oracle
-            await Oracle.commitOracleRequest(requestId, callbackAddress, callbackfunc, hash, {gasLimit: 8000000});
+            await Oracle.commitOracleRequest(requestId, callbackAddress, callbackfunc, hash, {gasLimit: 10000000});
             console.log("Commit sent hash is: " + hash);
         })
         Oracle.once(Oracle.filters.RequestReveal(), async (requester, payment, requestId, callbackAddress, callbackfunc) => {
