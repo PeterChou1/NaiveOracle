@@ -1,7 +1,12 @@
-# Naive Oracle
+# NaiveOracle
 
-Naive oracle is a student project which seeks to understand how oracles work. It does so by reimplementing the chainlink oracle v1 following the methodology of the [orginal white paper](./media/ChainlinkWPv1.pdf)
+![2](https://user-images.githubusercontent.com/68998300/205467524-cc2c84d5-796c-4fb5-8b62-8c2957d98b71.png)
 
+NaiveOracle is a student project for CSCD71 at the University of Toronto Scarborough, which seeks to understand the inner workings of oracles, and in particular: Decentralized Oracle Networks. We accomplish this by taking inspiration from the Chainlink Oracle Network v.1 following the methodology of the [orginal white paper](./media/ChainlinkWPv1.pdf)
+
+## Overview
+
+<img width="1680" alt="Screen Shot 2022-12-03 at 7 10 45 PM" src="https://user-images.githubusercontent.com/68998300/205467605-b00133ca-106a-416c-ae3d-b02541310a47.png">
 
 
 ## On-chain Contracts
@@ -31,7 +36,7 @@ When SLA communicates with an Oracle
 
 > Note: this possibly makes the difference from Chainlink
 
-#### Naive Tokens
+#### NaiveTokens
 
 NaiveTokens are intended to be the ERC20 tokens of our proof of concept network. User contracts will pay the tokens in exchange for access to the oracle network. Similarly oracle orperators would be require to stake coins in exchange for operating as an oracle node to incentivize good behaviour.
 
@@ -42,10 +47,6 @@ The Oracle represent the on chain component for oracle operators it is responsib
 #### User Contract
 
 The user contract is an example contract on how user contracts in our network could be used.
-
-#### What is happening
-
-<img src="./media/architecture.png" alt="Relation between User/SLA/Oracle Contracts" style="zoom:28%;" />
 
 
 
@@ -78,11 +79,10 @@ commit it will move on to the reveal phase where the retrieved value is revealed
 
 
 
-## Possible Topics to Explore (if we have infinite time)
+## Possible Topics to Explore (if we have had more time)
 
 - verifiable random number
 - chainlnk v2
-
 
 
 ## Team Oracle Members:
